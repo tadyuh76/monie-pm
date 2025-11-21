@@ -1,4 +1,4 @@
-package com.tadyuh.monie
+package com.example.monie
 
 import io.flutter.embedding.android.FlutterActivity
 
