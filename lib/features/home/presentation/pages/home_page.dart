@@ -32,6 +32,9 @@ import 'package:monie/features/transactions/presentation/bloc/transaction_event.
 import 'package:monie/features/transactions/presentation/bloc/transaction_state.dart';
 import 'package:monie/features/transactions/presentation/widgets/add_transaction_form.dart';
 import 'package:monie/features/transactions/presentation/widgets/budget_form_bottom_sheet.dart';
+import 'package:monie/features/predictions/presentation/pages/spending_forecast_page.dart';
+import 'package:monie/features/home/presentation/widgets/forecast_summary_widget.dart';
+
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -220,8 +223,7 @@ class _HomePageState extends State<HomePage> {
 
                 const SizedBox(height: 24),
 
-                // Accounts section
-                _buildAccountsSection(context, userId),
+                const ForecastSummaryWidget(),
 
                 const SizedBox(height: 24),
 
@@ -282,6 +284,8 @@ class _HomePageState extends State<HomePage> {
                 _buildBudgetsSection(context, userId),
 
                 const SizedBox(height: 30),
+                                
+
               ],
             ),
           ),

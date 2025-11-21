@@ -94,6 +94,11 @@ import 'package:monie/features/ai_insights/domain/repositories/spending_pattern_
 import 'package:monie/features/ai_insights/domain/usecases/analyze_spending_pattern_usecase.dart';
 import 'package:monie/features/ai_insights/presentation/bloc/spending_pattern_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:monie/features/predictions/data/datasources/prediction_analyzer.dart';
+import 'package:monie/features/predictions/data/repositories/prediction_repository_impl.dart';
+import 'package:monie/features/predictions/domain/repositories/prediction_repository.dart';
+import 'package:monie/features/predictions/domain/usecases/predict_spending_usecase.dart';
+import 'package:monie/features/predictions/presentation/bloc/prediction_bloc.dart';
 
 import '../features/transactions/data/repositories/category_repository_impl.dart';
 import '../features/transactions/domain/repositories/category_repository.dart';
@@ -404,6 +409,31 @@ Future<void> configureDependencies() async {
   sl.registerFactory(
     () => SpendingPatternBloc(
       analyzeSpendingPattern: sl(),
+    ),
+  );
+  // Data Sources
+  sl.registerLazySingleton(
+    () => PredictionAnalyzer(),
+  );
+
+  // Repositories
+  sl.registerLazySingleton<PredictionRepository>(
+    () => PredictionRepositoryImpl(
+      transactionRepository: sl(),
+      analyzer: sl(),
+      geminiService: sl(),
+    ),
+  );
+
+  // Use Cases
+  sl.registerLazySingleton(
+    () => PredictSpendingUseCase(sl()),
+  );
+
+  // BLoC
+  sl.registerFactory(
+    () => PredictionBloc(
+      predictSpendingUseCase: sl(),
     ),
   );
 }
