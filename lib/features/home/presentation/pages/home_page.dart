@@ -15,6 +15,7 @@ import 'package:monie/features/budgets/presentation/bloc/budgets_bloc.dart';
 import 'package:monie/features/budgets/presentation/widgets/budget_card.dart';
 import 'package:monie/features/budgets/presentation/widgets/budget_form.dart';
 import 'package:monie/features/home/presentation/widgets/accounts_section_widget.dart';
+import 'package:monie/features/home/presentation/widgets/ai_analysis_widget.dart';
 import 'package:monie/features/home/presentation/widgets/balance_chart_widget.dart';
 import 'package:monie/features/home/presentation/widgets/category_breakdown_widget.dart';
 import 'package:monie/features/home/presentation/widgets/greeting_widget.dart';
@@ -215,9 +216,9 @@ class _HomePageState extends State<HomePage> {
                 const SizedBox(height: 24),
 
                 // AI Analysis section
-                // const AIAnalysisWidget(),
+                const AIAnalysisWidget(),
 
-                // const SizedBox(height: 24),
+                const SizedBox(height: 24),
 
                 // Accounts section
                 _buildAccountsSection(context, userId),

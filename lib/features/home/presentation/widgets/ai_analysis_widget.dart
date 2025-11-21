@@ -1,132 +1,190 @@
+// lib/features/home/presentation/widgets/ai_analysis_widget.dart
+
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:monie/core/themes/app_colors.dart';
+import 'package:monie/di/injection.dart';
+import 'package:monie/features/ai_insights/presentation/bloc/spending_pattern_bloc.dart';
+import 'package:monie/features/ai_insights/presentation/bloc/spending_pattern_event.dart';
+import 'package:monie/features/ai_insights/presentation/bloc/spending_pattern_state.dart';
+import 'package:monie/features/ai_insights/presentation/pages/spending_analysis_page.dart';
+import 'package:monie/features/authentication/presentation/bloc/auth_bloc.dart';
+import 'package:monie/features/authentication/presentation/bloc/auth_state.dart';
 
 class AIAnalysisWidget extends StatelessWidget {
   const AIAnalysisWidget({super.key});
 
   @override
   Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (context) {
+        final bloc = sl<SpendingPatternBloc>();
+        // Auto-load analysis khi widget được tạo
+        final authState = context.read<AuthBloc>().state;
+        if (authState is Authenticated) {
+          bloc.add(AnalyzeSpendingPatternEvent(
+            userId: authState.user.id,
+            monthsBack: 1, // Quick 1-month analysis cho home
+          ));
+        }
+        return bloc;
+      },
+      child: const _AIAnalysisContent(),
+    );
+  }
+} // ⭐ DẤU ĐÓNG CHO AIAnalysisWidget
+
+class _AIAnalysisContent extends StatelessWidget {
+  const _AIAnalysisContent();
+
+  @override
+  Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final textTheme = Theme.of(context).textTheme;
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: isDarkMode ? AppColors.cardDark : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow:
-            isDarkMode
-                ? []
-                : [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
+    return BlocBuilder<SpendingPatternBloc, SpendingPatternState>(
+      builder: (context, state) {
+        return GestureDetector(
+          onTap: () {
+            // ⭐ Navigate to full analysis page
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const SpendingAnalysisPage(),
+              ),
+            );
+          },
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: isDarkMode ? AppColors.cardDark : Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: !isDarkMode
+                  ? [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ]
+                  : [],
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: isDarkMode
+                    ? [const Color(0xFF2E3747), const Color(0xFF1E2533)]
+                    : [const Color(0xFFE9F7FF), const Color(0xFFD4EEFF)],
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: isDarkMode
+                            ? const Color(0xFF3D4A63)
+                            : const Color(0xFFBBE0FF),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        Icons.auto_awesome,
+                        color: isDarkMode ? Colors.cyanAccent : Colors.blue,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'AI Spending Insights',
+                      style: textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: isDarkMode ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                    const Spacer(),
+                    if (state is SpendingPatternLoading)
+                      const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    else
+                      Icon(
+                        Icons.arrow_forward_ios,
+                        size: 16,
+                        color: isDarkMode ? Colors.white54 : Colors.black54,
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // Content based on state
+                if (state is SpendingPatternLoading) ...[
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(20),
+                      child: Text('Analyzing your spending...'),
+                    ),
+                  ),
+                ] else if (state is SpendingPatternLoaded) ...[
+                  // ⭐ Show real insights from AI
+                  _buildInsightCard(
+                    context,
+                    title: 'Financial Health',
+                    content: state.pattern.aiSummary ?? 'Analysis complete',
+                    icon: Icons.health_and_safety,
+                    color: _getHealthColor(state.pattern.financialHealthScore),
+                  ),
+                  if (state.pattern.unusualPatterns.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    _buildInsightCard(
+                      context,
+                      title: 'Unusual Activity',
+                      content: state.pattern.unusualPatterns.first,
+                      icon: Icons.warning_amber,
+                      color: Colors.orange,
+                    ),
+                  ],
+                ] else if (state is SpendingPatternError) ...[
+                  _buildInsightCard(
+                    context,
+                    title: 'Analysis Unavailable',
+                    content: 'Tap to view detailed insights',
+                    icon: Icons.info_outline,
+                    color: Colors.grey,
                   ),
                 ],
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors:
-              isDarkMode
-                  ? [const Color(0xFF2E3747), const Color(0xFF1E2533)]
-                  : [const Color(0xFFE9F7FF), const Color(0xFFD4EEFF)],
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color:
-                      isDarkMode
-                          ? const Color(0xFF3D4A63)
-                          : const Color(0xFFBBE0FF),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  Icons.auto_awesome,
-                  color: isDarkMode ? Colors.cyanAccent : Colors.blue,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'AI Insights',
-                style: textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: isDarkMode ? Colors.white : Colors.black87,
-                ),
-              ),
-              const Spacer(),
-              _buildPulsatingDot(),
-            ],
-          ),
-          const SizedBox(height: 20),
-          _buildInsightCard(
-            context,
-            title: 'Spending Forecast',
-            content:
-                'Based on your recent transactions, you may exceed your food budget by \$45 this month.',
-            icon: Icons.trending_up,
-            color: isDarkMode ? Colors.orangeAccent : Colors.orange,
-          ),
-          const SizedBox(height: 16),
-          _buildInsightCard(
-            context,
-            title: 'Savings Opportunity',
-            content:
-                'Reducing coffee purchases by 2 per week could save you \$28 monthly.',
-            icon: Icons.savings,
-            color: isDarkMode ? Colors.greenAccent : Colors.green,
-          ),
-          const SizedBox(height: 16),
-          _buildInsightCard(
-            context,
-            title: 'Unusual Activity',
-            content:
-                'Your entertainment spending is 35% higher than your monthly average.',
-            icon: Icons.warning_amber,
-            color: isDarkMode ? Colors.amberAccent : Colors.amber,
-          ),
-          // const SizedBox(height: 20),
-          // _buildAIActionButton(context),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildPulsatingDot() {
-    return TweenAnimationBuilder<double>(
-      tween: Tween<double>(begin: 0.0, end: 1.0),
-      duration: const Duration(seconds: 2),
-      builder: (context, value, child) {
-        return Container(
-          width: 10,
-          height: 10,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Colors.greenAccent,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.greenAccent.withValues(alpha: 0.5 * (1 - value)),
-                spreadRadius: 4.0 * value,
-                blurRadius: 4.0 * value,
-              ),
-            ],
+                const SizedBox(height: 12),
+
+                // View full analysis button
+                Center(
+                  child: Text(
+                    'Tap to view full analysis →',
+                    style: TextStyle(
+                      color: isDarkMode ? Colors.cyanAccent : Colors.blue,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },
-      onEnd: () {
-        // Rebuild to restart animation
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          // Force rebuild
-        });
-      },
     );
+  }
+
+  Color _getHealthColor(int? score) {
+    if (score == null) return Colors.grey;
+    if (score >= 80) return Colors.green;
+    if (score >= 60) return Colors.blue;
+    if (score >= 40) return Colors.orange;
+    return Colors.red;
   }
 
   Widget _buildInsightCard(
@@ -140,32 +198,30 @@ class AIAnalysisWidget extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color:
-            isDarkMode
-                ? Colors.black.withValues(alpha: 0.2)
-                : Colors.white.withValues(alpha: 0.6),
+        color: isDarkMode
+            ? Colors.black.withValues(alpha: 0.2)
+            : Colors.white.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color:
-              isDarkMode
-                  ? Colors.white.withValues(alpha: 0.1)
-                  : Colors.black.withValues(alpha: 0.05),
+          color: isDarkMode
+              ? Colors.white.withValues(alpha: 0.1)
+              : Colors.black.withValues(alpha: 0.05),
         ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(icon, color: color, size: 18),
+            child: Icon(icon, color: color, size: 16),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -174,15 +230,19 @@ class AIAnalysisWidget extends StatelessWidget {
                   title,
                   style: textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.bold,
+                    fontSize: 13,
                     color: isDarkMode ? Colors.white : Colors.black87,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
                   content,
-                  style: textTheme.bodyMedium?.copyWith(
+                  style: textTheme.bodySmall?.copyWith(
+                    fontSize: 12,
                     color: isDarkMode ? Colors.white70 : Colors.black54,
                   ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -191,4 +251,4 @@ class AIAnalysisWidget extends StatelessWidget {
       ),
     );
   }
-}
+} // ⭐ DẤU ĐÓNG CHO _AIAnalysisContent

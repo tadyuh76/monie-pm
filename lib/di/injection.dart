@@ -87,6 +87,12 @@ import 'package:monie/features/transactions/domain/usecases/update_transaction_u
 import 'package:monie/features/transactions/presentation/bloc/categories_bloc.dart';
 import 'package:monie/features/transactions/presentation/bloc/transaction_bloc.dart';
 import 'package:monie/features/transactions/presentation/bloc/transactions_bloc.dart';
+import 'package:monie/core/services/gemini_service.dart';
+import 'package:monie/features/ai_insights/data/datasources/spending_pattern_analyzer.dart';
+import 'package:monie/features/ai_insights/data/repositories/spending_pattern_repository_impl.dart';
+import 'package:monie/features/ai_insights/domain/repositories/spending_pattern_repository.dart';
+import 'package:monie/features/ai_insights/domain/usecases/analyze_spending_pattern_usecase.dart';
+import 'package:monie/features/ai_insights/presentation/bloc/spending_pattern_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../features/transactions/data/repositories/category_repository_impl.dart';
@@ -370,6 +376,34 @@ Future<void> configureDependencies() async {
       updateUserProfile: sl(),
       changePassword: sl(),
       uploadAvatar: sl(),
+    ),
+  );
+  // Core Services
+  sl.registerSingleton<GeminiService>(GeminiService());
+
+  // Data Sources
+  sl.registerLazySingleton<SpendingPatternAnalyzer>(
+    () => SpendingPatternAnalyzer(),
+  );
+
+  // Repositories
+  sl.registerLazySingleton<SpendingPatternRepository>(
+    () => SpendingPatternRepositoryImpl(
+      transactionRepository: sl(),
+      analyzer: sl(),
+      geminiService: sl(),
+    ),
+  );
+
+  // Use Cases
+  sl.registerLazySingleton(
+    () => AnalyzeSpendingPatternUseCase(sl()),
+  );
+
+  // BLoC
+  sl.registerFactory(
+    () => SpendingPatternBloc(
+      analyzeSpendingPattern: sl(),
     ),
   );
 }
