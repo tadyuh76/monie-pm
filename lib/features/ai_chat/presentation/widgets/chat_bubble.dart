@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:monie/core/themes/app_colors.dart'; 
 import 'package:monie/features/ai_chat/domain/entities/chat_message.dart';
+import 'package:flutter_markdown/flutter_markdown.dart'; 
+
 // Import các widget attachment (sẽ tạo ở bước sau nếu cần chart)
 
 class ChatBubble extends StatelessWidget {
@@ -60,14 +62,20 @@ class ChatBubble extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // 1. Text Message
-                  Text(
-                    message.text,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: textColor,
-                      height: 1.4, // Line height dễ đọc
+                  MarkdownBody(
+                    data: message.text,
+                    styleSheet: MarkdownStyleSheet(
+                      p: theme.textTheme.bodyMedium?.copyWith(
+                        color: textColor,
+                        height: 1.4,
+                      ),
+                      strong: TextStyle( // Style cho chữ in đậm (**)
+                        fontWeight: FontWeight.bold,
+                        color: textColor, 
+                      ),
+                      // Các style khác nếu cần
                     ),
                   ),
-
                   // 2. Attachments (Charts/Cards)
                   if (message.attachments != null && message.attachments!.isNotEmpty) ...[
                     const SizedBox(height: 12),
