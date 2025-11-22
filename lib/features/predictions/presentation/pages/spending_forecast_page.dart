@@ -12,14 +12,12 @@ import 'package:monie/features/predictions/presentation/bloc/prediction_state.da
 import 'package:monie/features/predictions/presentation/widgets/prediction_gauge_widget.dart';
 import 'package:monie/features/predictions/presentation/widgets/category_forecast_chart.dart';
 import 'package:monie/features/predictions/presentation/widgets/confidence_indicator.dart';
+import 'package:monie/features/budgets/domain/repositories/budget_repository.dart'; // ⭐ Add import
 
 class SpendingForecastPage extends StatelessWidget {
   final double? initialBudget;
 
-  const SpendingForecastPage({
-    super.key,
-    this.initialBudget,
-  });
+  const SpendingForecastPage({super.key, this.initialBudget});
 
   @override
   Widget build(BuildContext context) {
@@ -27,19 +25,59 @@ class SpendingForecastPage extends StatelessWidget {
       create: (context) {
         final bloc = sl<PredictionBloc>();
         final authState = context.read<AuthBloc>().state;
-        
+
         if (authState is Authenticated) {
-          bloc.add(PredictNextMonthEvent(
-            userId: authState.user.id,
-            budget: initialBudget ?? 2000.0, // Default budget
-          ));
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+          _initializePrediction(context, bloc, authState.user.id);
+        });
         }
-        
+
         return bloc;
       },
       child: const _SpendingForecastView(),
     );
   }
+
+  //Fetch budget and initialize prediction
+Future<void> _initializePrediction(
+  BuildContext context,
+  PredictionBloc bloc,
+  String userId,
+) async {
+  try {
+    final budgetRepository = sl<BudgetRepository>();
+    final activeBudgets = await budgetRepository.getActiveBudgets();
+
+    double budgetAmount = initialBudget ?? 2000.0;
+
+    if (activeBudgets.isNotEmpty) {
+      // ⭐ CỘNG TỔNG tất cả active budgets
+      budgetAmount = activeBudgets.fold<double>(
+        0.0,
+        (sum, budget) => sum + budget.amount,
+      );
+      
+      print('💰 [INITIAL LOAD] Total active budget: \$${budgetAmount.toStringAsFixed(2)}');
+      print('   From ${activeBudgets.length} budget(s):');
+      for (var i = 0; i < activeBudgets.length; i++) {
+        print('   ${i + 1}. ${activeBudgets[i].name}: \$${activeBudgets[i].amount.toStringAsFixed(2)}');
+      }
+    } else {
+      print('⚠️ [INITIAL LOAD] No active budget found, using default: \$${budgetAmount}');
+    }
+
+    bloc.add(PredictNextMonthEvent(
+      userId: userId,
+      budget: budgetAmount,
+    ));
+  } catch (e) {
+    print('❌ [INITIAL LOAD] Failed to load budget: $e');
+    bloc.add(PredictNextMonthEvent(
+      userId: userId,
+      budget: initialBudget ?? 2000.0,
+    ));
+  }
+}
 }
 
 class _SpendingForecastView extends StatefulWidget {
@@ -65,7 +103,9 @@ class _SpendingForecastViewState extends State<_SpendingForecastView> {
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () {
-              context.read<PredictionBloc>().add(const RefreshPredictionEvent());
+              context.read<PredictionBloc>().add(
+                const RefreshPredictionEvent(),
+              );
             },
           ),
         ],
@@ -117,8 +157,8 @@ class _SpendingForecastViewState extends State<_SpendingForecastView> {
                     ElevatedButton.icon(
                       onPressed: () {
                         context.read<PredictionBloc>().add(
-                              const RefreshPredictionEvent(),
-                            );
+                          const RefreshPredictionEvent(),
+                        );
                       },
                       icon: const Icon(Icons.refresh),
                       label: const Text('Try Again'),
@@ -134,7 +174,9 @@ class _SpendingForecastViewState extends State<_SpendingForecastView> {
 
             return RefreshIndicator(
               onRefresh: () async {
-                context.read<PredictionBloc>().add(const RefreshPredictionEvent());
+                context.read<PredictionBloc>().add(
+                  const RefreshPredictionEvent(),
+                );
                 await Future.delayed(const Duration(seconds: 1));
               },
               child: SingleChildScrollView(
@@ -171,7 +213,11 @@ class _SpendingForecastViewState extends State<_SpendingForecastView> {
                       const SizedBox(height: 24),
 
                     // Recommendations
-                    _buildRecommendationsCard(prediction, isDarkMode, textTheme),
+                    _buildRecommendationsCard(
+                      prediction,
+                      isDarkMode,
+                      textTheme,
+                    ),
                   ],
                 ),
               ),
@@ -242,57 +288,31 @@ class _SpendingForecastViewState extends State<_SpendingForecastView> {
         });
 
         if (authState is Authenticated) {
-          final budget = 2000.0; // Get from user settings
-          
-          switch (period) {
-            case 'week':
-              context.read<PredictionBloc>().add(
-                    PredictNextWeekEvent(
-                      userId: authState.user.id,
-                      budget: budget,
-                    ),
-                  );
-              break;
-            case 'month':
-              context.read<PredictionBloc>().add(
-                    PredictNextMonthEvent(
-                      userId: authState.user.id,
-                      budget: budget,
-                    ),
-                  );
-              break;
-            case 'quarter':
-              context.read<PredictionBloc>().add(
-                    PredictNextQuarterEvent(
-                      userId: authState.user.id,
-                      budget: budget * 3,
-                    ),
-                  );
-              break;
-          }
+          // ⭐ Trigger prediction with real budget
+          _triggerPredictionWithBudget(context, period, authState.user.id);
         }
       },
       borderRadius: BorderRadius.circular(8),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected
-              ? (isDarkMode ? Colors.blue.shade900 : Colors.blue.shade50)
-              : Colors.transparent,
+          color:
+              isSelected
+                  ? (isDarkMode ? Colors.blue.shade900 : Colors.blue.shade50)
+                  : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: isSelected
-                ? Colors.blue
-                : (isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300),
+            color:
+                isSelected
+                    ? Colors.blue
+                    : (isDarkMode
+                        ? Colors.grey.shade700
+                        : Colors.grey.shade300),
           ),
         ),
         child: Column(
           children: [
-            Icon(
-              icon,
-              color: isSelected ? Colors.blue : Colors.grey,
-              size: 20,
-            ),
+            Icon(icon, color: isSelected ? Colors.blue : Colors.grey, size: 20),
             const SizedBox(height: 4),
             Text(
               label,
@@ -308,11 +328,100 @@ class _SpendingForecastViewState extends State<_SpendingForecastView> {
     );
   }
 
-  Widget _buildReasoningCard(
-    prediction,
-    bool isDarkMode,
-    TextTheme textTheme,
-  ) {
+  Future<void> _triggerPredictionWithBudget(
+  BuildContext context,
+  String period,
+  String userId,
+) async {
+  try {
+    final budgetRepository = sl<BudgetRepository>();
+    final activeBudgets = await budgetRepository.getActiveBudgets();
+
+    double budgetAmount;
+
+    if (activeBudgets.isNotEmpty) {
+      // ⭐ CỘNG TỔNG tất cả active budgets
+      final totalBudget = activeBudgets.fold<double>(
+        0.0,
+        (sum, budget) => sum + budget.amount,
+      );
+
+      print('💰 Total budget from ${activeBudgets.length} budget(s): \$${totalBudget.toStringAsFixed(0)}');
+
+      // Scale budget based on period
+      budgetAmount = switch (period) {
+        'week' => totalBudget / 4,
+        'month' => totalBudget,
+        'quarter' => totalBudget * 3,
+        _ => totalBudget,
+      };
+
+      print('💰 Scaled budget for $period: \$${budgetAmount.toStringAsFixed(0)}');
+    } else {
+      budgetAmount = switch (period) {
+        'week' => 500.0,
+        'month' => 20000.0,
+        'quarter' => 6000.0,
+        _ => 2000.0,
+      };
+
+      print('⚠️ No active budget, using default: \$${budgetAmount}');
+    }
+
+    if (!context.mounted) return;
+
+    final predictionBloc = context.read<PredictionBloc>();
+
+    switch (period) {
+      case 'week':
+        predictionBloc.add(PredictNextWeekEvent(
+          userId: userId,
+          budget: budgetAmount,
+        ));
+        break;
+      case 'month':
+        predictionBloc.add(PredictNextMonthEvent(
+          userId: userId,
+          budget: budgetAmount,
+        ));
+        break;
+      case 'quarter':
+        predictionBloc.add(PredictNextQuarterEvent(
+          userId: userId,
+          budget: budgetAmount,
+        ));
+        break;
+    }
+  } catch (e) {
+    print('❌ Error fetching budget: $e');
+
+    final defaultBudget = switch (period) {
+      'week' => 500.0,
+      'month' => 20000.0,
+      'quarter' => 6000.0,
+      _ => 2000.0,
+    };
+
+    if (!context.mounted) return;
+
+    final predictionBloc = context.read<PredictionBloc>();
+
+    switch (period) {
+      case 'week':
+        predictionBloc.add(PredictNextWeekEvent(userId: userId, budget: defaultBudget));
+        break;
+      case 'month':
+        predictionBloc.add(PredictNextMonthEvent(userId: userId, budget: defaultBudget));
+        break;
+      case 'quarter':
+        predictionBloc.add(PredictNextQuarterEvent(userId: userId, budget: defaultBudget));
+        break;
+    }
+  }
+}
+
+
+  Widget _buildReasoningCard(prediction, bool isDarkMode, TextTheme textTheme) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -336,23 +445,19 @@ class _SpendingForecastViewState extends State<_SpendingForecastView> {
               ],
             ),
             const SizedBox(height: 12),
-            Text(
-              prediction.reasoning,
-              style: textTheme.bodyMedium,
-            ),
+            Text(prediction.reasoning, style: textTheme.bodyMedium),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildWarningsCard(
-    prediction,
-    bool isDarkMode,
-    TextTheme textTheme,
-  ) {
+  Widget _buildWarningsCard(prediction, bool isDarkMode, TextTheme textTheme) {
     return Card(
-      color: isDarkMode ? Colors.orange.shade900.withOpacity(0.3) : Colors.orange.shade50,
+      color:
+          isDarkMode
+              ? Colors.orange.shade900.withOpacity(0.3)
+              : Colors.orange.shade50,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -376,26 +481,19 @@ class _SpendingForecastViewState extends State<_SpendingForecastView> {
               ],
             ),
             const SizedBox(height: 12),
-            ...prediction.warnings.map((warning) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(
-                        Icons.circle,
-                        size: 6,
-                        color: Colors.orange.shade700,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          warning,
-                          style: textTheme.bodyMedium,
-                        ),
-                      ),
-                    ],
-                  ),
-                )),
+            ...prediction.warnings.map(
+              (warning) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.circle, size: 6, color: Colors.orange.shade700),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(warning, style: textTheme.bodyMedium)),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -430,26 +528,23 @@ class _SpendingForecastViewState extends State<_SpendingForecastView> {
               ],
             ),
             const SizedBox(height: 12),
-            ...prediction.recommendations.map((rec) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(
-                        Icons.check_circle,
-                        size: 20,
-                        color: Colors.green.shade700,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          rec,
-                          style: textTheme.bodyMedium,
-                        ),
-                      ),
-                    ],
-                  ),
-                )),
+            ...prediction.recommendations.map(
+              (rec) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.check_circle,
+                      size: 20,
+                      color: Colors.green.shade700,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(rec, style: textTheme.bodyMedium)),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),

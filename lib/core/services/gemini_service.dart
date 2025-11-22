@@ -24,7 +24,7 @@ class GeminiService {
         temperature: 0.7,
         topK: 40,
         topP: 0.95,
-        maxOutputTokens: 2048,
+        maxOutputTokens: 8192,
       ),
       safetySettings: [
         SafetySetting(
@@ -185,5 +185,108 @@ Provide a comprehensive analysis focusing on:
     }
     return buffer.toString();
   }
-  
+  /// Predict spending patterns (for Predictions feature)
+  Future<Map<String, dynamic>> predictSpending({
+    required Map<String, dynamic> historicalData,
+    required DateTime targetStartDate,
+    required DateTime targetEndDate,
+    required double budget,
+  }) async {
+    final monthlyTotals = historicalData['monthlyTotals'] as List<double>? ?? [];
+    final categoryAverages = historicalData['categoryAverages'] as Map<String, dynamic>? ?? {};
+    final growthRate = historicalData['growthRate'] as double? ?? 0.0;
+    final average = historicalData['average'] as double? ?? 0.0;
+    final seasonalFactor = historicalData['seasonalFactor'] as double? ?? 1.0;
+
+    final prompt = '''
+  You are a financial forecasting AI. Predict spending for the upcoming period.
+
+  **Historical Data:**
+  - Monthly totals (last ${monthlyTotals.length} months): ${monthlyTotals.map((v) => '\$${v.toStringAsFixed(0)}').join(', ')}
+  - Average monthly: \$${average.toStringAsFixed(2)}
+  - Growth rate: ${(growthRate * 100).toStringAsFixed(1)}%
+  - Seasonal factor: ${seasonalFactor.toStringAsFixed(2)}x
+
+  **Target Period:**
+  - Start: ${targetStartDate.toString().split(' ')[0]}
+  - End: ${targetEndDate.toString().split(' ')[0]}
+  - Budget: \$${budget.toStringAsFixed(2)}
+
+  **Category Averages:**
+  ${categoryAverages.entries.map((e) => '- ${e.key}: \$${(e.value as num).toStringAsFixed(2)}').join('\n')}
+
+  Task: Predict total spending and category breakdown.
+  ''';
+
+    final expectedFormat = '''
+  {
+    "predictedTotal": ${(average * (1 + growthRate) * seasonalFactor).toStringAsFixed(0)},
+    "confidence": 0.75,
+    "categoryPredictions": {
+      "Food": 500,
+      "Transport": 200,
+      "Shopping": 150,
+      "Entertainment": 100,
+      "Bills": 150,
+      "Healthcare": 50,
+      "Others": 50
+    },
+    "reasoning": "Based on historical data and trends",
+    "trend": "stable",
+    "warnings": [],
+    "recommendations": ["Monitor spending", "Set alerts", "Review categories"]
+  }
+  ''';
+
+    try {
+      // Use generateStructuredContent() which handles JSON properly
+      return await generateStructuredContent(
+        prompt: prompt,
+        expectedFormat: expectedFormat,
+      );
+    } catch (e) {
+      print('⚠️ Gemini prediction failed: $e');
+      // Return fallback
+      return _getMockPrediction(historicalData, budget);
+    }
+  }
+
+  /// Mock prediction for fallback
+  Map<String, dynamic> _getMockPrediction(
+    Map<String, dynamic> historicalData,
+    double budget,
+  ) {
+    final average = historicalData['average'] as double? ?? budget * 0.8;
+    final growthRate = historicalData['growthRate'] as double? ?? 0.0;
+    final seasonalFactor = historicalData['seasonalFactor'] as double? ?? 1.0;
+    final categoryAverages = historicalData['categoryAverages'] as Map<String, dynamic>? ?? {};
+
+    final predicted = average * (1 + growthRate) * seasonalFactor;
+
+    return {
+      'predictedTotal': predicted,
+      'confidence': 0.65,
+      'categoryPredictions': categoryAverages.isNotEmpty 
+          ? categoryAverages.map((k, v) => MapEntry(k, (v as num).toDouble()))
+          : {
+              'Food': predicted * 0.35,
+              'Transport': predicted * 0.20,
+              'Shopping': predicted * 0.15,
+              'Entertainment': predicted * 0.10,
+              'Bills': predicted * 0.15,
+              'Healthcare': predicted * 0.02,
+              'Others': predicted * 0.03,
+            },
+      'reasoning': 'Forecast based on ${historicalData['dataPoints'] ?? 0} months of data. AI service using fallback calculation.',
+      'trend': growthRate > 0.05 ? 'increasing' : growthRate < -0.05 ? 'decreasing' : 'stable',
+      'warnings': predicted > budget 
+          ? ['Predicted spending (\$${predicted.toStringAsFixed(0)}) exceeds budget']
+          : [],
+      'recommendations': [
+        'Monitor daily expenses',
+        'Review top spending categories',
+        'Set up spending alerts',
+      ],
+    };
+  }
 }

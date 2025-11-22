@@ -32,7 +32,6 @@ import 'package:monie/features/transactions/presentation/bloc/transaction_event.
 import 'package:monie/features/transactions/presentation/bloc/transaction_state.dart';
 import 'package:monie/features/transactions/presentation/widgets/add_transaction_form.dart';
 import 'package:monie/features/transactions/presentation/widgets/budget_form_bottom_sheet.dart';
-import 'package:monie/features/predictions/presentation/pages/spending_forecast_page.dart';
 import 'package:monie/features/home/presentation/widgets/forecast_summary_widget.dart';
 
 
@@ -216,18 +215,11 @@ class _HomePageState extends State<HomePage> {
                   ],
                 ),
 
-                const SizedBox(height: 24),
 
-                // AI Analysis section
-                const AIAnalysisWidget(),
-
-                const SizedBox(height: 24),
-
-                const ForecastSummaryWidget(),
+                // Accounts section
+                _buildAccountsSection(context, userId),
 
                 const SizedBox(height: 24),
-
-                // Monthly Summary section
                 BlocBuilder<TransactionBloc, TransactionState>(
                   builder: (context, state) {
                     if (state is TransactionsLoaded) {
@@ -238,6 +230,11 @@ class _HomePageState extends State<HomePage> {
                     return const SizedBox();
                   },
                 ),
+
+                const SizedBox(height: 24),
+
+                // AI Analysis section
+                const AIAnalysisWidget(),
 
                 const SizedBox(height: 24),
 
@@ -255,15 +252,15 @@ class _HomePageState extends State<HomePage> {
 
                 const SizedBox(height: 24),
 
-                // Spending Forecast section
-                const SpendingForecastWidget(),
+                const ForecastSummaryWidget(),
 
                 const SizedBox(height: 24),
+
 
                 // // Smart Budget Recommendations
                 // const SmartBudgetWidget(),
 
-                // const SizedBox(height: 24),
+                // const SizedBox(height: 24),R
 
                 // Heat Map section
                 const HeatMapSectionWidget(),
