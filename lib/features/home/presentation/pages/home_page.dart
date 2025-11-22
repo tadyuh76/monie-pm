@@ -23,7 +23,6 @@ import 'package:monie/features/home/presentation/widgets/heat_map_section_widget
 import 'package:monie/features/home/presentation/widgets/monthly_summary_widget.dart';
 import 'package:monie/features/home/presentation/widgets/notification_bell_widget.dart';
 import 'package:monie/features/home/presentation/widgets/recent_transactions_section_widget.dart';
-import 'package:monie/features/home/presentation/widgets/spending_forecast_widget.dart';
 import 'package:monie/features/notifications/presentation/bloc/notification_bloc.dart';
 import 'package:monie/features/notifications/presentation/bloc/notification_event.dart';
 import 'package:monie/features/transactions/domain/entities/transaction.dart';
@@ -32,9 +31,8 @@ import 'package:monie/features/transactions/presentation/bloc/transaction_event.
 import 'package:monie/features/transactions/presentation/bloc/transaction_state.dart';
 import 'package:monie/features/transactions/presentation/widgets/add_transaction_form.dart';
 import 'package:monie/features/transactions/presentation/widgets/budget_form_bottom_sheet.dart';
-import 'package:monie/features/predictions/presentation/pages/spending_forecast_page.dart';
 import 'package:monie/features/home/presentation/widgets/forecast_summary_widget.dart';
-
+import 'package:monie/features/ai_chat/presentation/widgets/chat_bubble_manager.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -51,6 +49,9 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _loadData();
+     WidgetsBinding.instance.addPostFrameCallback((_) {
+      ChatBubbleManager.instance.show(context);
+    });
   }
 
   void _loadData() {
@@ -89,7 +90,6 @@ class _HomePageState extends State<HomePage> {
       }
     }
   }
-
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<AuthBloc, AuthState>(
@@ -216,18 +216,11 @@ class _HomePageState extends State<HomePage> {
                   ],
                 ),
 
-                const SizedBox(height: 24),
 
-                // AI Analysis section
-                const AIAnalysisWidget(),
-
-                const SizedBox(height: 24),
-
-                const ForecastSummaryWidget(),
+                // Accounts section
+                _buildAccountsSection(context, userId),
 
                 const SizedBox(height: 24),
-
-                // Monthly Summary section
                 BlocBuilder<TransactionBloc, TransactionState>(
                   builder: (context, state) {
                     if (state is TransactionsLoaded) {
@@ -238,6 +231,11 @@ class _HomePageState extends State<HomePage> {
                     return const SizedBox();
                   },
                 ),
+
+                const SizedBox(height: 24),
+
+                // AI Analysis section
+                const AIAnalysisWidget(),
 
                 const SizedBox(height: 24),
 
@@ -255,15 +253,15 @@ class _HomePageState extends State<HomePage> {
 
                 const SizedBox(height: 24),
 
-                // Spending Forecast section
-                const SpendingForecastWidget(),
+                const ForecastSummaryWidget(),
 
                 const SizedBox(height: 24),
+
 
                 // // Smart Budget Recommendations
                 // const SmartBudgetWidget(),
 
-                // const SizedBox(height: 24),
+                // const SizedBox(height: 24),R
 
                 // Heat Map section
                 const HeatMapSectionWidget(),

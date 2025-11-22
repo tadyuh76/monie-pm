@@ -1,6 +1,4 @@
 // lib/features/predictions/data/repositories/prediction_repository_impl.dart
-
-import 'dart:convert';
 import 'package:injectable/injectable.dart';
 import 'package:monie/core/services/gemini_service.dart';
 import 'package:monie/features/predictions/data/datasources/prediction_analyzer.dart';
@@ -122,108 +120,17 @@ class PredictionRepositoryImpl implements PredictionRepository {
     required DateTime targetEndDate,
     required double budget,
   }) async {
-    final monthlyTotals = historicalData['monthlyTotals'] as List<double>;
-    final categoryAverages = historicalData['categoryAverages'] as Map<String, double>;
-    final growthRate = historicalData['growthRate'] as double;
-    final seasonalFactor = historicalData['seasonalFactor'] as double;
-    final upcomingEvents = historicalData['upcomingEvents'] as List;
-
-    // Build prompt for Gemini
-    final prompt = """
-You are a financial forecasting AI. Predict spending for the upcoming period based on historical data.
-
-**Historical Monthly Spending (Last ${monthlyTotals.length} months):**
-${_formatMonthlyTotals(monthlyTotals)}
-
-**Average Monthly Spending:** \$${historicalData['average'].toStringAsFixed(2)}
-**Spending Variability:** ${historicalData['variability'].toStringAsFixed(2)}
-**Growth Rate:** ${(growthRate * 100).toStringAsFixed(1)}% ${growthRate > 0 ? 'increasing' : growthRate < 0 ? 'decreasing' : 'stable'}
-
-**Category Averages (Monthly):**
-${categoryAverages.entries.map((e) => '- ${e.key}: \$${e.value.toStringAsFixed(2)}').join('\n')}
-
-**Target Period:** ${_formatDate(targetStartDate)} to ${_formatDate(targetEndDate)}
-**Days in Period:** ${targetEndDate.difference(targetStartDate).inDays}
-**User Budget:** \$${budget.toStringAsFixed(2)}
-**Seasonal Factor:** ${seasonalFactor.toStringAsFixed(2)}x (for ${_getMonthName(targetStartDate.month)})
-
-**Upcoming Events:**
-${upcomingEvents.isEmpty ? '- None detected' : upcomingEvents.map((e) => '- ${e['name']}: \$${e['amount'].toStringAsFixed(2)} (${e['type']})').join('\n')}
-
-**Task:** Predict total spending for the target period considering:
-1. Historical patterns and trends
-2. Seasonal adjustments
-3. Upcoming recurring expenses
-4. Growth rate trajectory
-5. Budget constraints
-
-**Output Format (JSON only, no markdown):**
-{
-  "predictedTotal": <number>,
-  "confidence": <0-1>,
-  "categoryPredictions": {
-    "Food": <number>,
-    "Transport": <number>,
-    "Shopping": <number>,
-    "Entertainment": <number>,
-    "Bills": <number>,
-    "Healthcare": <number>,
-    "Others": <number>
-  },
-  "reasoning": "<explanation of prediction logic>",
-  "trend": "<increasing|decreasing|stable>",
-  "warnings": ["<warning1>", "<warning2>"],
-  "recommendations": ["<rec1>", "<rec2>", "<rec3>"]
-}
-
-**Important:**
-- Be realistic based on historical data
-- Consider seasonal factors
-- Flag if prediction exceeds budget significantly
-- Confidence should reflect data quality
-""";
-
     try {
-      final response = await geminiService.generateContent(prompt);
-      
-      // Parse JSON from response
-      final jsonStr = _extractJson(response);
-      final Map<String, dynamic> parsed = _parseJsonSafely(jsonStr);
-      
-      return parsed;
+      // ⭐ Call predictSpending() method (now exists in gemini_service.dart)
+      return await geminiService.predictSpending(
+        historicalData: historicalData,
+        targetStartDate: targetStartDate,
+        targetEndDate: targetEndDate,
+        budget: budget,
+      );
     } catch (e) {
-      print('⚠️ Gemini API error, using mock prediction: $e');
-      // Return mock data if Gemini fails
+      print('⚠️ Gemini prediction failed: $e');
       return _getMockPrediction(historicalData, budget);
-    }
-  }
-
-  /// Extract JSON from markdown or mixed response
-  String _extractJson(String response) {
-    // Remove markdown code blocks
-    String cleaned = response
-        .replaceAll('```json', '')
-        .replaceAll('```', '')
-        .trim();
-    
-    // Find JSON object
-    final startIndex = cleaned.indexOf('{');
-    final endIndex = cleaned.lastIndexOf('}');
-    
-    if (startIndex != -1 && endIndex != -1) {
-      return cleaned.substring(startIndex, endIndex + 1);
-    }
-    
-    return cleaned;
-  }
-
-  /// Safely parse JSON with fallback
-  Map<String, dynamic> _parseJsonSafely(String jsonStr) {
-    try {
-      return jsonDecode(jsonStr);
-    } catch (e) {
-      print('⚠️ JSON parse error: $e');
-      throw Exception('Failed to parse AI response');
     }
   }
 
@@ -358,25 +265,5 @@ ${upcomingEvents.isEmpty ? '- None detected' : upcomingEvents.map((e) => '- ${e[
 
   String _generateCacheKey(String userId, DateTime start, DateTime end) {
     return '${userId}_${start.toIso8601String()}_${end.toIso8601String()}';
-  }
-
-  String _formatMonthlyTotals(List<double> totals) {
-    return totals.asMap().entries.map((e) {
-      final index = e.key + 1;
-      final value = e.value;
-      return 'Month $index: \$${value.toStringAsFixed(2)}';
-    }).join('\n');
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-  }
-
-  String _getMonthName(int month) {
-    const months = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
-    ];
-    return months[month - 1];
   }
 }

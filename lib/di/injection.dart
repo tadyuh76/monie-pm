@@ -107,7 +107,12 @@ import 'package:monie/features/groups/domain/usecases/get_group_transactions.dar
 import 'package:monie/features/groups/domain/usecases/approve_group_transaction.dart';
 import 'package:monie/features/groups/domain/usecases/remove_member.dart';
 import 'package:monie/features/groups/domain/usecases/update_member_role.dart';
-
+import 'package:monie/features/ai_chat/data/datasources/ai_chat_remote_data_source.dart';
+import 'package:monie/features/ai_chat/data/datasources/financial_context_builder.dart';
+import 'package:monie/features/ai_chat/data/repositories/ai_chat_repository_impl.dart';
+import 'package:monie/features/ai_chat/domain/repositories/ai_chat_repository.dart';
+import 'package:monie/features/ai_chat/domain/usecases/send_chat_message_usecase.dart';
+import 'package:monie/features/ai_chat/presentation/bloc/ai_chat_bloc.dart';
 final sl = GetIt.instance;
 
 @InjectableInit(
@@ -434,6 +439,45 @@ Future<void> configureDependencies() async {
   sl.registerFactory(
     () => PredictionBloc(
       predictSpendingUseCase: sl(),
+    ),
+  );
+    // 1. Data Sources
+  // FinancialContextBuilder cần TransactionRepository và BudgetRepository (đã được đăng ký từ trước)
+  sl.registerLazySingleton<FinancialContextBuilder>(
+    () => FinancialContextBuilder(
+      transactionRepository: sl(),
+      budgetRepository: sl(),
+      // accountRepository: sl(), // Uncomment nếu bạn đã có AccountRepository
+    ),
+  );
+
+  // AIChatRemoteDataSource cần GeminiService (đã được đăng ký là Singleton)
+  sl.registerLazySingleton<AIChatRemoteDataSource>(
+    () => AIChatRemoteDataSource(
+      geminiService: sl(),
+    ),
+  );
+
+  // 2. Repository
+  sl.registerLazySingleton<AIChatRepository>(
+    () => AIChatRepositoryImpl(
+      remoteDataSource: sl(),
+      contextBuilder: sl(),
+    ),
+  );
+
+  // 3. Use Cases
+  sl.registerLazySingleton<SendChatMessageUseCase>(
+    () => SendChatMessageUseCase(
+      repository: sl(),
+    ),
+  );
+
+  // 4. BLoC
+  // Dùng registerFactory để mỗi lần mở màn hình Chat là tạo một Bloc mới
+  sl.registerFactory<AIChatBloc>(
+    () => AIChatBloc(
+      sendChatMessageUseCase: sl(),
     ),
   );
 }

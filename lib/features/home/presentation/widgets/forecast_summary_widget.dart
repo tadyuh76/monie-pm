@@ -6,34 +6,99 @@ import 'package:monie/core/themes/app_colors.dart';
 import 'package:monie/di/injection.dart';
 import 'package:monie/features/authentication/presentation/bloc/auth_bloc.dart';
 import 'package:monie/features/authentication/presentation/bloc/auth_state.dart';
+import 'package:monie/features/budgets/domain/repositories/budget_repository.dart';
 import 'package:monie/features/predictions/presentation/bloc/prediction_bloc.dart';
 import 'package:monie/features/predictions/presentation/bloc/prediction_event.dart';
 import 'package:monie/features/predictions/presentation/bloc/prediction_state.dart';
 import 'package:monie/features/predictions/presentation/pages/spending_forecast_page.dart';
 
-class ForecastSummaryWidget extends StatelessWidget {
+class ForecastSummaryWidget extends StatefulWidget {
   const ForecastSummaryWidget({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) {
-        final bloc = sl<PredictionBloc>();
-        // Auto-load next month prediction
+  State<ForecastSummaryWidget> createState() => _ForecastSummaryWidgetState();
+}
+
+class _ForecastSummaryWidgetState extends State<ForecastSummaryWidget> {
+  late final PredictionBloc _predictionBloc;
+  bool _isInitialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _predictionBloc = sl<PredictionBloc>();
+    
+    // Load prediction with real budget after widget builds
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadPredictionWithBudget();
+    });
+  }
+
+  Future<void> _loadPredictionWithBudget() async {
+    if (_isInitialized) return;
+
+    final authState = context.read<AuthBloc>().state;
+    if (authState is! Authenticated) return;
+
+    try {
+      // ⭐ Fetch real budget from database
+      final budgetRepository = sl<BudgetRepository>();
+      final activeBudgets = await budgetRepository.getActiveBudgets();
+
+      double totalBudget = 2000.0; // Default
+      if (activeBudgets.isNotEmpty) {
+        totalBudget = activeBudgets.fold<double>(
+          0.0,
+          (sum, budget) => sum + budget.amount,
+        );
+        print('💰 [FORECAST SUMMARY] Total budget: \$${totalBudget.toStringAsFixed(0)}');
+      }
+
+      // ⭐ Trigger prediction with real budget
+      if (mounted) {
+        _predictionBloc.add(
+          PredictNextMonthEvent(
+            userId: authState.user.id,
+            budget: totalBudget,
+          ),
+        );
+        setState(() {
+          _isInitialized = true;
+        });
+      }
+    } catch (e) {
+      print('❌ [FORECAST SUMMARY] Failed to load budget: $e');
+      // Fallback to default
+      if (mounted) {
         final authState = context.read<AuthBloc>().state;
         if (authState is Authenticated) {
-          bloc.add(PredictNextMonthEvent(
-            userId: authState.user.id,
-            budget: 2000.0, // TODO: Get from user settings/budget
-          ));
+          _predictionBloc.add(
+            PredictNextMonthEvent(
+              userId: authState.user.id,
+              budget: 2000.0,
+            ),
+          );
         }
-        return bloc;
-      },
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _predictionBloc.close();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocProvider.value(
+      value: _predictionBloc,
       child: const _ForecastSummaryContent(),
     );
   }
 }
 
+// ⭐ Rest of the widget remains the same
 class _ForecastSummaryContent extends StatelessWidget {
   const _ForecastSummaryContent();
 
@@ -46,7 +111,6 @@ class _ForecastSummaryContent extends StatelessWidget {
       builder: (context, state) {
         return GestureDetector(
           onTap: () {
-            // ⭐ Navigate to full forecast page
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -120,7 +184,6 @@ class _ForecastSummaryContent extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 16),
-
                 // Content based on state
                 if (state is PredictionLoading) ...[
                   const Center(
@@ -130,7 +193,6 @@ class _ForecastSummaryContent extends StatelessWidget {
                     ),
                   ),
                 ] else if (state is PredictionLoaded) ...[
-                  // ⭐ Show prediction summary
                   _buildPredictionSummary(
                     context,
                     state.prediction,
@@ -140,10 +202,7 @@ class _ForecastSummaryContent extends StatelessWidget {
                 ] else if (state is PredictionError) ...[
                   _buildErrorCard(context, isDarkMode, textTheme),
                 ],
-
                 const SizedBox(height: 12),
-
-                // View full forecast button
                 Center(
                   child: Text(
                     'Tap to view detailed forecast →',
@@ -221,9 +280,7 @@ class _ForecastSummaryContent extends StatelessWidget {
             ),
           ],
         ),
-
         const SizedBox(height: 16),
-
         // Progress bar
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -259,16 +316,14 @@ class _ForecastSummaryContent extends StatelessWidget {
                 backgroundColor: isDarkMode
                     ? Colors.grey.shade800
                     : Colors.grey.shade200,
-                valueColor: AlwaysStoppedAnimation<Color>(
+                valueColor: AlwaysStoppedAnimation(
                   isOverBudget ? Colors.red : Colors.green,
                 ),
               ),
             ),
           ],
         ),
-
         const SizedBox(height: 16),
-
         // Confidence indicator
         Row(
           children: [
