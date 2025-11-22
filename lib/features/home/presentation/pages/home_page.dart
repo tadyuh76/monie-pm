@@ -23,7 +23,6 @@ import 'package:monie/features/home/presentation/widgets/heat_map_section_widget
 import 'package:monie/features/home/presentation/widgets/monthly_summary_widget.dart';
 import 'package:monie/features/home/presentation/widgets/notification_bell_widget.dart';
 import 'package:monie/features/home/presentation/widgets/recent_transactions_section_widget.dart';
-import 'package:monie/features/home/presentation/widgets/spending_forecast_widget.dart';
 import 'package:monie/features/notifications/presentation/bloc/notification_bloc.dart';
 import 'package:monie/features/notifications/presentation/bloc/notification_event.dart';
 import 'package:monie/features/transactions/domain/entities/transaction.dart';
@@ -33,7 +32,7 @@ import 'package:monie/features/transactions/presentation/bloc/transaction_state.
 import 'package:monie/features/transactions/presentation/widgets/add_transaction_form.dart';
 import 'package:monie/features/transactions/presentation/widgets/budget_form_bottom_sheet.dart';
 import 'package:monie/features/home/presentation/widgets/forecast_summary_widget.dart';
-
+import 'package:monie/features/ai_chat/presentation/widgets/chat_bubble_manager.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -50,6 +49,9 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _loadData();
+     WidgetsBinding.instance.addPostFrameCallback((_) {
+      ChatBubbleManager.instance.show(context);
+    });
   }
 
   void _loadData() {
@@ -88,7 +90,6 @@ class _HomePageState extends State<HomePage> {
       }
     }
   }
-
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<AuthBloc, AuthState>(

@@ -1,6 +1,4 @@
 // lib/features/predictions/data/repositories/prediction_repository_impl.dart
-
-import 'dart:convert';
 import 'package:injectable/injectable.dart';
 import 'package:monie/core/services/gemini_service.dart';
 import 'package:monie/features/predictions/data/datasources/prediction_analyzer.dart';
@@ -136,36 +134,6 @@ class PredictionRepositoryImpl implements PredictionRepository {
     }
   }
 
-
-  /// Extract JSON from markdown or mixed response
-  String _extractJson(String response) {
-    // Remove markdown code blocks
-    String cleaned = response
-        .replaceAll('```json', '')
-        .replaceAll('```', '')
-        .trim();
-    
-    // Find JSON object
-    final startIndex = cleaned.indexOf('{');
-    final endIndex = cleaned.lastIndexOf('}');
-    
-    if (startIndex != -1 && endIndex != -1) {
-      return cleaned.substring(startIndex, endIndex + 1);
-    }
-    
-    return cleaned;
-  }
-
-  /// Safely parse JSON with fallback
-  Map<String, dynamic> _parseJsonSafely(String jsonStr) {
-    try {
-      return jsonDecode(jsonStr);
-    } catch (e) {
-      print('⚠️ JSON parse error: $e');
-      throw Exception('Failed to parse AI response');
-    }
-  }
-
   /// Mock prediction when Gemini is unavailable
   Map<String, dynamic> _getMockPrediction(
     Map<String, dynamic> historicalData,
@@ -297,25 +265,5 @@ class PredictionRepositoryImpl implements PredictionRepository {
 
   String _generateCacheKey(String userId, DateTime start, DateTime end) {
     return '${userId}_${start.toIso8601String()}_${end.toIso8601String()}';
-  }
-
-  String _formatMonthlyTotals(List<double> totals) {
-    return totals.asMap().entries.map((e) {
-      final index = e.key + 1;
-      final value = e.value;
-      return 'Month $index: \$${value.toStringAsFixed(2)}';
-    }).join('\n');
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-  }
-
-  String _getMonthName(int month) {
-    const months = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
-    ];
-    return months[month - 1];
   }
 }

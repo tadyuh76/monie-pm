@@ -54,6 +54,15 @@ class GeminiService {
       throw Exception('Failed to generate content: $e');
     }
   }
+  
+  /// Returns a ChatSession object that maintains history
+  ChatSession startChatSession({required String systemContext}) {
+    return _model.startChat(
+      history: [
+        Content.text(systemContext),
+      ],
+    );
+  }
 
   /// Generate structured JSON response
   /// Returns parsed Map from JSON response
