@@ -137,25 +137,36 @@ class _SpendingAnalysisViewState extends State<_SpendingAnalysisView> {
 
                     // Cache indicator
                     if (state.isFromCache)
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.cached, size: 16, color: Colors.blue.shade700),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Showing cached analysis',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.blue.shade700,
-                              ),
+                      Builder(
+                        builder: (context) {
+                          final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+                          return Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: isDarkMode
+                                  ? Colors.blue.withOpacity(0.2)
+                                  : Colors.blue.shade50,
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                          ],
-                        ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.cached,
+                                  size: 16,
+                                  color: isDarkMode ? Colors.blue.shade300 : Colors.blue.shade700,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Showing cached analysis',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: isDarkMode ? Colors.blue.shade300 : Colors.blue.shade700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
                       ),
                     const SizedBox(height: 16),
 

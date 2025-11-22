@@ -54,6 +54,7 @@ dependencies:
   flutter_svg: ^2.1.0
   intl: 0.20.2
   image_picker: ^1.0.7
+  flutter_markdown: ^0.6.14
 
   # Storage
   shared_preferences: ^2.5.3
