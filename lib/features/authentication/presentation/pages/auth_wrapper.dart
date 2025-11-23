@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:monie/core/services/notification_service.dart';
 import 'package:monie/core/widgets/loading_screen.dart';
 import 'package:monie/core/widgets/main_screen.dart';
+import 'package:monie/di/injection.dart';
 import 'package:monie/features/authentication/presentation/bloc/auth_bloc.dart';
 import 'package:monie/features/authentication/presentation/bloc/auth_event.dart';
 import 'package:monie/features/authentication/presentation/bloc/auth_state.dart';
@@ -38,6 +40,11 @@ class AuthWrapper extends StatelessWidget {
             );
           });
         } else if (state is Authenticated) {
+          // Get FCM token and update it in the database
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _updateFcmToken(context);
+          });
+
           // Force navigation to main screen when authenticated
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!context.mounted) return;
@@ -62,5 +69,18 @@ class AuthWrapper extends StatelessWidget {
         }
       },
     );
+  }
+
+  void _updateFcmToken(BuildContext context) async {
+    try {
+      final notificationService = sl<NotificationService>();
+      final token = await notificationService.getToken();
+      if (token != null && context.mounted) {
+        // Update FCM token in the database
+        context.read<AuthBloc>().add(UpdateFcmTokenEvent(token: token));
+      }
+    } catch (e) {
+      // Silently fail - FCM token update is not critical
+    }
   }
 }

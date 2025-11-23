@@ -36,6 +36,12 @@ class NotificationDataSourceImpl implements NotificationDataSource {
           .map((json) => NotificationModel.fromJson(json))
           .toList();
     } catch (e) {
+      // Check if table doesn't exist
+      if (e.toString().contains('PGRST205') || 
+          e.toString().contains('Could not find the table')) {
+        // Return empty list if table doesn't exist yet
+        return [];
+      }
       throw Exception('Failed to fetch notifications: $e');
     }
   }
@@ -76,6 +82,12 @@ class NotificationDataSourceImpl implements NotificationDataSource {
           .from('notifications')
           .insert(notificationData);
     } catch (e) {
+      // Check if table doesn't exist - silently fail for now
+      if (e.toString().contains('PGRST205') || 
+          e.toString().contains('Could not find the table')) {
+        print('Warning: notifications table does not exist. Please run migrations.');
+        return;
+      }
       throw Exception('Failed to create notification: $e');
     }
   }
@@ -122,6 +134,12 @@ class NotificationDataSourceImpl implements NotificationDataSource {
             .insert(notifications);
       }
     } catch (e) {
+      // Check if table doesn't exist - silently fail for now
+      if (e.toString().contains('PGRST205') || 
+          e.toString().contains('Could not find the table')) {
+        print('Warning: notifications table does not exist. Please run migrations.');
+        return;
+      }
       throw Exception('Failed to create group notifications: $e');
     }
   }
@@ -149,6 +167,11 @@ class NotificationDataSourceImpl implements NotificationDataSource {
 
       return response.length;
     } catch (e) {
+      // Check if table doesn't exist
+      if (e.toString().contains('PGRST205') || 
+          e.toString().contains('Could not find the table')) {
+        return 0;
+      }
       throw Exception('Failed to get unread count: $e');
     }
   }

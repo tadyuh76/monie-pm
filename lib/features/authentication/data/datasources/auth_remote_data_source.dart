@@ -37,6 +37,9 @@ abstract class AuthRemoteDataSource {
   /// Checks if an email already exists and returns status with verification state
   /// Returns a map with 'exists' (bool) and 'verified' (bool) keys
   Future<Map<String, bool>> checkEmailExists({required String email});
+
+  /// Updates the FCM token for the current user
+  Future<void> updateFcmToken({required String token});
 }
 
 class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
@@ -377,6 +380,26 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     } catch (e) {
       // If there's any error, assume the email doesn't exist
       return {'exists': false, 'verified': false};
+    }
+  }
+
+  @override
+  Future<void> updateFcmToken({required String token}) async {
+    try {
+      final user = supabaseClient.auth.currentUser;
+      if (user == null) {
+        throw const AuthFailure(message: 'No authenticated user');
+      }
+
+      // Update FCM token in users table
+      await supabaseClient.client.from('users').upsert({
+        'user_id': user.id,
+        'fcm_token': token,
+      }, onConflict: 'user_id');
+    } on AuthException catch (e) {
+      throw AuthFailure(message: e.message);
+    } catch (e) {
+      throw ServerFailure(message: e.toString());
     }
   }
 }

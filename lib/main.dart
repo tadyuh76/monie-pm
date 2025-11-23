@@ -1,3 +1,4 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -5,6 +6,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:monie/core/localization/app_localizations.dart';
 import 'package:monie/core/network/supabase_client.dart';
+import 'package:monie/core/services/notification_service.dart';
 import 'package:monie/core/themes/app_theme.dart';
 // import 'package:monie/core/themes/color_extensions.dart';
 import 'package:monie/di/injection.dart';
@@ -38,6 +40,9 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load();
 
+  // Initialize Firebase
+  await Firebase.initializeApp();
+
   // Lock orientation to portrait
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
@@ -59,6 +64,11 @@ void main() async {
 
   // Setup dependency injection
   await configureDependencies();
+
+  // Initialize notification service and schedule daily reminder
+  final notificationService = sl<NotificationService>();
+  await notificationService.initialize();
+  await notificationService.scheduleDailyReminder();
 
   runApp(const MyApp());
 }
