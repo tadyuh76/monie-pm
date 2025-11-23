@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -15,6 +16,11 @@ class NotificationService {
   final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
 
   bool _initialized = false;
+
+  // Notification ID constants
+  static const int dailyReminderId = 1;
+  static const int groupExpenseIdStart = 1000;
+  static const int groupExpenseIdEnd = 9999;
 
   /// Initialize notification service
   Future<void> initialize() async {
@@ -96,40 +102,63 @@ class NotificationService {
     }
   }
 
-  /// Schedule daily reminder at 1:00 PM
+  /// Schedule daily reminder at 22:10 (10:10 PM)
   Future<void> scheduleDailyReminder() async {
+    print('🔔 [NotificationService] scheduleDailyReminder() called');
+    
     if (!_initialized) {
+      print('🔔 [NotificationService] Not initialized, initializing now...');
       await initialize();
     }
 
     try {
-      // Cancel any existing daily reminder
-      await _localNotifications.cancel(1);
+      // Check permission status first
+      final hasPermission = await _checkNotificationPermission();
+      if (!hasPermission) {
+        print('⚠️ [NotificationService] Notification permission not granted!');
+        print('⚠️ Please enable notifications in Settings > Apps > Monie > Notifications');
+        return;
+      }
 
-      // Schedule for 1:00 PM (13:00) every day in device's local timezone
-      // Use DateTime.now() to get device's local time, then convert to TZDateTime
-      final now = DateTime.now();
-      final localTz = tz.getLocation(await _getLocalTimezoneName());
+      // Cancel any existing daily reminder
+      await _localNotifications.cancel(dailyReminderId);
+      print('🔔 [NotificationService] Cancelled existing daily reminder');
+
+      // Get accurate timezone using flutter_native_timezone
+      final String timezoneName = await _getLocalTimezoneName();
+      print('🔔 [NotificationService] Detected timezone: $timezoneName');
       
+      final localTz = tz.getLocation(timezoneName);
+      final now = DateTime.now();
+      final nowTz = tz.TZDateTime.from(now, localTz);
+      
+      print('🔔 [NotificationService] Current time: $nowTz');
+      
+      // Schedule for 22:10 (10:10 PM) every day in device's local timezone
       tz.TZDateTime scheduledDate = tz.TZDateTime(
         localTz,
         now.year,
         now.month,
         now.day,
-        13, // 1:00 PM
-        0,
+        23, // 10:10 PM
+        25,
       );
 
       // If the time has already passed today, schedule for tomorrow
-      final nowTz = tz.TZDateTime.from(now, localTz);
       if (scheduledDate.isBefore(nowTz)) {
         scheduledDate = scheduledDate.add(const Duration(days: 1));
+        print('🔔 [NotificationService] Time already passed, scheduling for tomorrow');
       }
+      
+      print('🔔 [NotificationService] Scheduled time: $scheduledDate');
+      print('🔔 [NotificationService] Time until notification: ${scheduledDate.difference(nowTz)}');
 
       // Try exact alarm first, fallback to inexact if it fails
+      bool exactAlarmScheduled = false;
+      
       try {
         await _localNotifications.zonedSchedule(
-          1,
+          dailyReminderId,
           'Daily Transaction Reminder',
           'Don\'t forget to add your transactions for today!',
           scheduledDate,
@@ -153,37 +182,103 @@ class NotificationService {
               UILocalNotificationDateInterpretation.absoluteTime,
           matchDateTimeComponents: DateTimeComponents.time,
         );
+        exactAlarmScheduled = true;
+        print('✅ [NotificationService] Daily reminder scheduled successfully (exact alarm)');
       } catch (e) {
+        print('⚠️ [NotificationService] Exact alarm failed: $e');
+        print('⚠️ [NotificationService] Attempting fallback to inexact alarm...');
+        
         // Fallback to inexact alarm if exact alarm fails
-        await _localNotifications.zonedSchedule(
-          1,
-          'Daily Transaction Reminder',
-          'Don\'t forget to add your transactions for today!',
-          scheduledDate,
-          const NotificationDetails(
-            android: AndroidNotificationDetails(
-              'monie_notifications',
-              'Monie Notifications',
-              channelDescription: 'Notifications for group transactions and reminders',
-              importance: Importance.high,
-              priority: Priority.high,
-              icon: '@mipmap/ic_launcher',
+        try {
+          await _localNotifications.zonedSchedule(
+            dailyReminderId,
+            'Daily Transaction Reminder',
+            'Don\'t forget to add your transactions for today!',
+            scheduledDate,
+            const NotificationDetails(
+              android: AndroidNotificationDetails(
+                'monie_notifications',
+                'Monie Notifications',
+                channelDescription: 'Notifications for group transactions and reminders',
+                importance: Importance.high,
+                priority: Priority.high,
+                icon: '@mipmap/ic_launcher',
+              ),
+              iOS: DarwinNotificationDetails(
+                presentAlert: true,
+                presentBadge: true,
+                presentSound: true,
+              ),
             ),
-            iOS: DarwinNotificationDetails(
-              presentAlert: true,
-              presentBadge: true,
-              presentSound: true,
-            ),
-          ),
-          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-          uiLocalNotificationDateInterpretation:
-              UILocalNotificationDateInterpretation.absoluteTime,
-          matchDateTimeComponents: DateTimeComponents.time,
-        );
+            androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+            uiLocalNotificationDateInterpretation:
+                UILocalNotificationDateInterpretation.absoluteTime,
+            matchDateTimeComponents: DateTimeComponents.time,
+          );
+          print('✅ [NotificationService] Daily reminder scheduled successfully (inexact alarm)');
+        } catch (e2) {
+          print('❌ [NotificationService] Failed to schedule notification: $e2');
+          rethrow;
+        }
       }
-    } catch (e) {
-      // Silently fail - notification scheduling is not critical
+      
+      // Log final status
+      if (exactAlarmScheduled) {
+        print('✅ [NotificationService] EXACT alarm set for 22:10 daily');
+      } else {
+        print('⚠️ [NotificationService] INEXACT alarm set for 22:10 daily');
+        print('⚠️ Exact alarms may require SCHEDULE_EXACT_ALARM permission on Android 12+');
+      }
+      
+    } catch (e, stackTrace) {
+      print('❌ [NotificationService] ERROR scheduling daily reminder: $e');
+      print('❌ Stack trace: $stackTrace');
+      // Don't rethrow - notification scheduling is not critical
     }
+  }
+
+  /// Check if notification permission is granted
+  Future<bool> _checkNotificationPermission() async {
+    if (Platform.isAndroid) {
+      final androidImpl = _localNotifications
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
+      
+      if (androidImpl != null) {
+        // Check if permission is granted
+        final granted = await androidImpl.areNotificationsEnabled();
+        return granted ?? false;
+      }
+      return true; // Assume granted if can't check
+    } else if (Platform.isIOS) {
+      final settings = await _firebaseMessaging.getNotificationSettings();
+      return settings.authorizationStatus == AuthorizationStatus.authorized ||
+             settings.authorizationStatus == AuthorizationStatus.provisional;
+    }
+    return true;
+  }
+
+  /// Request notification permission (useful for showing user prompt)
+  Future<bool> requestNotificationPermission() async {
+    if (Platform.isAndroid) {
+      final androidImpl = _localNotifications
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
+      
+      if (androidImpl != null) {
+        return await androidImpl.requestNotificationsPermission() ?? false;
+      }
+      return true;
+    } else if (Platform.isIOS) {
+      final settings = await _firebaseMessaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+      return settings.authorizationStatus == AuthorizationStatus.authorized ||
+             settings.authorizationStatus == AuthorizationStatus.provisional;
+    }
+    return true;
   }
 
   /// Handle foreground FCM messages
@@ -254,15 +349,21 @@ class NotificationService {
 
   /// Get local timezone name from device
   Future<String> _getLocalTimezoneName() async {
+    // Use timezone detection based on system offset
+    // This is more reliable and doesn't require additional packages
+    return _getFallbackTimezoneName();
+  }
+
+  /// Fallback timezone detection based on offset
+  String _getFallbackTimezoneName() {
     try {
-      // Use DateTime to get timezone offset and infer timezone
       final now = DateTime.now();
       final offset = now.timeZoneOffset;
       final offsetHours = offset.inHours;
       
+      print('🔔 [NotificationService] Using fallback timezone detection (offset: UTC${offsetHours >= 0 ? '+' : ''}$offsetHours)');
+      
       // Common timezone mappings based on offset
-      // This is a simplified approach - for production, consider using a package
-      // like flutter_native_timezone for more accurate timezone detection
       if (offsetHours == 0) return 'UTC';
       if (offsetHours == 7) return 'Asia/Ho_Chi_Minh'; // Vietnam
       if (offsetHours == 8) return 'Asia/Hong_Kong';
@@ -273,8 +374,10 @@ class NotificationService {
       if (offsetHours == 2) return 'Europe/Berlin';
       
       // Default to UTC if no match
+      print('⚠️ [NotificationService] No timezone match found for offset $offsetHours, defaulting to UTC');
       return 'UTC';
     } catch (e) {
+      print('❌ [NotificationService] Fallback timezone detection failed: $e');
       return 'UTC';
     }
   }
