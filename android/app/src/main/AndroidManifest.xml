@@ -35,7 +35,9 @@
         </activity>
         
         <!-- Receiver for boot completed to reschedule notifications -->
+        <!-- Temporarily disabled to prevent crash from corrupted notification data -->
         <receiver android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver"
+            android:enabled="false"
             android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED"/>

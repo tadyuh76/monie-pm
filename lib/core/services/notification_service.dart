@@ -96,8 +96,16 @@ class NotificationService {
   /// Get FCM token for the device
   Future<String?> getToken() async {
     try {
-      return await _firebaseMessaging.getToken();
+      print('🔑 [NotificationService] Requesting FCM token...');
+      final token = await _firebaseMessaging.getToken();
+      if (token != null) {
+        print('✅ [NotificationService] FCM token obtained: ${token.substring(0, 20)}...');
+      } else {
+        print('⚠️ [NotificationService] FCM token is null');
+      }
+      return token;
     } catch (e) {
+      print('❌ [NotificationService] Failed to get FCM token: $e');
       return null;
     }
   }
@@ -120,9 +128,9 @@ class NotificationService {
         return;
       }
 
-      // Cancel any existing daily reminder
-      await _localNotifications.cancel(dailyReminderId);
-      print('🔔 [NotificationService] Cancelled existing daily reminder');
+      // Cancel ALL pending notifications to clear any corrupted ones
+      await _localNotifications.cancelAll();
+      print('🔔 [NotificationService] Cancelled all pending notifications');
 
       // Get accurate timezone using flutter_native_timezone
       final String timezoneName = await _getLocalTimezoneName();
@@ -140,8 +148,8 @@ class NotificationService {
         now.year,
         now.month,
         now.day,
-        23, // 10:10 PM
-        25,
+        01, // 10:10 PM
+        35,
       );
 
       // If the time has already passed today, schedule for tomorrow
@@ -178,6 +186,7 @@ class NotificationService {
             ),
           ),
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          payload: 'daily_reminder',
           uiLocalNotificationDateInterpretation:
               UILocalNotificationDateInterpretation.absoluteTime,
           matchDateTimeComponents: DateTimeComponents.time,
@@ -211,6 +220,7 @@ class NotificationService {
               ),
             ),
             androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+            payload: 'daily_reminder',
             uiLocalNotificationDateInterpretation:
                 UILocalNotificationDateInterpretation.absoluteTime,
             matchDateTimeComponents: DateTimeComponents.time,
@@ -283,11 +293,17 @@ class NotificationService {
 
   /// Handle foreground FCM messages
   void _handleForegroundMessage(RemoteMessage message) {
+    print('🔔 [NotificationService] Foreground message received!');
+    print('   Title: ${message.notification?.title}');
+    print('   Body: ${message.notification?.body}');
+    print('   Data: ${message.data}');
+    
+    // Show local notification even when app is in foreground
     _localNotifications.show(
       message.hashCode,
       message.notification?.title ?? 'New Notification',
       message.notification?.body ?? '',
-      const NotificationDetails(
+      NotificationDetails(
         android: AndroidNotificationDetails(
           'monie_notifications',
           'Monie Notifications',
@@ -295,6 +311,11 @@ class NotificationService {
           importance: Importance.high,
           priority: Priority.high,
           icon: '@mipmap/ic_launcher',
+          playSound: true,
+          enableVibration: true,
+          styleInformation: BigTextStyleInformation(
+            message.notification?.body ?? '',
+          ),
         ),
         iOS: DarwinNotificationDetails(
           presentAlert: true,
@@ -303,6 +324,8 @@ class NotificationService {
         ),
       ),
     );
+    
+    print('✅ [NotificationService] Local notification shown');
   }
 
   /// Handle background FCM messages (when app is opened from notification)

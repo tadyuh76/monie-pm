@@ -388,17 +388,25 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     try {
       final user = supabaseClient.auth.currentUser;
       if (user == null) {
+        print('❌ [AuthRemoteDataSource] No authenticated user');
         throw const AuthFailure(message: 'No authenticated user');
       }
 
-      // Update FCM token in users table
-      await supabaseClient.client.from('users').upsert({
-        'user_id': user.id,
-        'fcm_token': token,
-      }, onConflict: 'user_id');
+      print('🔄 [AuthRemoteDataSource] Updating FCM token for user: ${user.id}');
+      print('   Token: ${token.substring(0, 20)}...');
+
+      // Update FCM token in users table using UPDATE (not upsert)
+      await supabaseClient.client
+          .from('users')
+          .update({'fcm_token': token})
+          .eq('user_id', user.id);
+
+      print('✅ [AuthRemoteDataSource] FCM token updated successfully');
     } on AuthException catch (e) {
+      print('❌ [AuthRemoteDataSource] AuthException: ${e.message}');
       throw AuthFailure(message: e.message);
     } catch (e) {
+      print('❌ [AuthRemoteDataSource] Error updating FCM token: $e');
       throw ServerFailure(message: e.toString());
     }
   }

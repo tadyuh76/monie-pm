@@ -225,15 +225,20 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     UpdateFcmTokenEvent event,
     Emitter<AuthState> emit,
   ) async {
+    print('🔄 [AuthBloc] Updating FCM token in database...');
+    print('   Token: ${event.token.substring(0, 20)}...');
+    
     final params = UpdateFcmTokenParams(token: event.token);
     final result = await _updateFcmToken(params);
 
     result.fold(
       (failure) {
+        print('❌ [AuthBloc] Failed to update FCM token: ${failure.message}');
         // Silently fail - don't emit error state for FCM token updates
         // This is a background operation that shouldn't disrupt user experience
       },
       (_) {
+        print('✅ [AuthBloc] FCM token updated successfully in database');
         // Success - token updated silently
       },
     );
