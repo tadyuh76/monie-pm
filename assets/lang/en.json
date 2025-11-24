@@ -244,6 +244,10 @@
   "settings_loading_profile": "Loading profile...",
   "settings_profile_unavailable": "Profile unavailable",
   "settings_profile_updated": "Profile updated successfully",
+  "settings_daily_reminder_time": "Daily Reminder Time",
+  "settings_time_format": "Time Format",
+  "settings_reminder_updated": "Reminder time updated successfully",
+  "settings_reminder_update_error": "Failed to update reminder time",
 
   "common_loading": "Loading",
   "common_error": "Error",

@@ -244,6 +244,10 @@
   "settings_loading_profile": "Đang tải hồ sơ...",
   "settings_profile_unavailable": "Không thể tải hồ sơ",
   "settings_profile_updated": "Hồ sơ đã được cập nhật thành công",
+  "settings_daily_reminder_time": "Thời gian nhắc nhở hàng ngày",
+  "settings_time_format": "Định dạng thời gian",
+  "settings_reminder_updated": "Thời gian nhắc nhở đã được cập nhật",
+  "settings_reminder_update_error": "Không thể cập nhật thời gian nhắc nhở",
 
   "common_loading": "Đang tải",
   "common_error": "Lỗi",

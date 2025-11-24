@@ -43,6 +43,8 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     on<UpdateAvatarEvent>(_onUpdateAvatar);
     on<UpdatePhoneNumberEvent>(_onUpdatePhoneNumber);
     on<ChangePasswordEvent>(_onChangePassword);
+    on<UpdateDailyReminderTimeEvent>(_onUpdateDailyReminderTime);
+    on<UpdateTimeFormatEvent>(_onUpdateTimeFormat);
   }
 
   Future<void> _onLoadSettings(
@@ -326,6 +328,74 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
       }
 
       emit(SettingsError('$errorMessage: ${e.toString()}'));
+    }
+  }
+
+  Future<void> _onUpdateDailyReminderTime(
+    UpdateDailyReminderTimeEvent event,
+    Emitter<SettingsState> emit,
+  ) async {
+    try {
+      final newSettings = _currentSettings.copyWith(
+        dailyReminderTime: event.reminderTime,
+      );
+      final success = await saveAppSettings(newSettings);
+      if (success) {
+        _currentSettings = newSettings;
+        if (_currentProfile != null) {
+          emit(
+            ProfileLoaded(
+              profile: _currentProfile!,
+              settings: _currentSettings,
+            ),
+          );
+        } else {
+          emit(
+            SettingsUpdateSuccess(
+              message: 'Daily reminder time updated',
+              settings: _currentSettings,
+            ),
+          );
+        }
+      } else {
+        emit(const SettingsError('Failed to update reminder time'));
+      }
+    } catch (e) {
+      emit(SettingsError('Error updating reminder time: ${e.toString()}'));
+    }
+  }
+
+  Future<void> _onUpdateTimeFormat(
+    UpdateTimeFormatEvent event,
+    Emitter<SettingsState> emit,
+  ) async {
+    try {
+      final newSettings = _currentSettings.copyWith(
+        timeFormat: event.timeFormat,
+      );
+      final success = await saveAppSettings(newSettings);
+      if (success) {
+        _currentSettings = newSettings;
+        if (_currentProfile != null) {
+          emit(
+            ProfileLoaded(
+              profile: _currentProfile!,
+              settings: _currentSettings,
+            ),
+          );
+        } else {
+          emit(
+            SettingsUpdateSuccess(
+              message: 'Time format updated',
+              settings: _currentSettings,
+            ),
+          );
+        }
+      } else {
+        emit(const SettingsError('Failed to update time format'));
+      }
+    } catch (e) {
+      emit(SettingsError('Error updating time format: ${e.toString()}'));
     }
   }
 }

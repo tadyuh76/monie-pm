@@ -110,9 +110,12 @@ class NotificationService {
     }
   }
 
-  /// Schedule daily reminder at 22:10 (10:10 PM)
-  Future<void> scheduleDailyReminder() async {
-    print('🔔 [NotificationService] scheduleDailyReminder() called');
+  /// Schedule daily reminder at specified time (defaults to 22:10 if not specified)
+  Future<void> scheduleDailyReminder({int? hour, int? minute}) async {
+    final reminderHour = hour ?? 22;
+    final reminderMinute = minute ?? 10;
+    
+    print('🔔 [NotificationService] scheduleDailyReminder() called with time: $reminderHour:$reminderMinute');
     
     if (!_initialized) {
       print('🔔 [NotificationService] Not initialized, initializing now...');
@@ -142,14 +145,14 @@ class NotificationService {
       
       print('🔔 [NotificationService] Current time: $nowTz');
       
-      // Schedule for 22:10 (10:10 PM) every day in device's local timezone
+      // Schedule for specified time every day in device's local timezone
       tz.TZDateTime scheduledDate = tz.TZDateTime(
         localTz,
         now.year,
         now.month,
         now.day,
-        01, // 10:10 PM
-        35,
+        reminderHour,
+        reminderMinute,
       );
 
       // If the time has already passed today, schedule for tomorrow
@@ -234,9 +237,9 @@ class NotificationService {
       
       // Log final status
       if (exactAlarmScheduled) {
-        print('✅ [NotificationService] EXACT alarm set for 22:10 daily');
+        print('✅ [NotificationService] EXACT alarm set for $reminderHour:${reminderMinute.toString().padLeft(2, '0')} daily');
       } else {
-        print('⚠️ [NotificationService] INEXACT alarm set for 22:10 daily');
+        print('⚠️ [NotificationService] INEXACT alarm set for $reminderHour:${reminderMinute.toString().padLeft(2, '0')} daily');
         print('⚠️ Exact alarms may require SCHEDULE_EXACT_ALARM permission on Android 12+');
       }
       

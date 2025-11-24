@@ -21,27 +21,82 @@ class SettingsRepositoryImpl implements SettingsRepository {
   @override
   Future<AppSettings> getAppSettings() async {
     try {
-      // Load settings from SharedPreferences
+      // First try to get settings from backend (if user is authenticated)
+      final User? user = _supabaseClient.client.auth.currentUser;
+      
+      if (user != null) {
+        try {
+          final response = await _supabaseClient.client.rpc('get_user_settings');
+          
+          if (response != null) {
+            // Parse backend settings
+            final dailyReminderTime = response['daily_reminder_time'] ?? "22:10";
+            final timeFormatStr = response['time_format'] ?? '24h';
+            final timeFormat = timeFormatStr == '12h' 
+                ? TimeFormat.twelveHour 
+                : TimeFormat.twentyFourHour;
+            final timezone = response['timezone'];
+            final notificationsEnabled = response['notifications_enabled'] ?? true;
+            final colorMode = response['color_mode'] ?? 'dark';
+            final themeMode = colorMode == 'light' 
+                ? ThemeMode.light 
+                : ThemeMode.dark;
+            final languageStr = response['language'] ?? 'en';
+            final language = languageStr == 'vi' 
+                ? AppLanguage.vietnamese 
+                : AppLanguage.english;
+            
+            // Save to local cache for offline access
+            final settings = AppSettings(
+              notificationsEnabled: notificationsEnabled,
+              themeMode: themeMode,
+              language: language,
+              dailyReminderTime: dailyReminderTime,
+              timeFormat: timeFormat,
+              timezone: timezone,
+            );
+            
+            // Cache locally
+            await _cacheSettings(settings);
+            
+            return settings;
+          }
+        } catch (e) {
+          debugPrint('Error fetching settings from backend: $e');
+          // Fall through to local cache
+        }
+      }
+      
+      // Fallback to local cache
       final notificationsEnabled =
           _preferences.getBool('notificationsEnabled') ?? true;
       final themeModeIndex =
           _preferences.getInt('themeMode') ?? ThemeMode.dark.index;
       final languageIndex =
           _preferences.getInt('language') ?? AppLanguage.english.index;
+      final dailyReminderTime =
+          _preferences.getString('dailyReminderTime') ?? "22:10";
+      final timeFormatIndex =
+          _preferences.getInt('timeFormat') ?? TimeFormat.twentyFourHour.index;
+      final timezone = _preferences.getString('timezone');
 
       return AppSettings(
         notificationsEnabled: notificationsEnabled,
         themeMode: ThemeMode.values[themeModeIndex],
         language: AppLanguage.values[languageIndex],
+        dailyReminderTime: dailyReminderTime,
+        timeFormat: TimeFormat.values[timeFormatIndex],
+        timezone: timezone,
       );
     } catch (e) {
+      debugPrint('Error loading settings: $e');
       // Return default settings on error
       return const AppSettings();
     }
   }
-
-  @override
-  Future<bool> saveAppSettings(AppSettings settings) async {
+  
+  // Helper method to cache settings locally
+  Future<void> _cacheSettings(AppSettings settings) async {
     try {
       await _preferences.setBool(
         'notificationsEnabled',
@@ -49,8 +104,68 @@ class SettingsRepositoryImpl implements SettingsRepository {
       );
       await _preferences.setInt('themeMode', settings.themeMode.index);
       await _preferences.setInt('language', settings.language.index);
+      await _preferences.setString(
+        'dailyReminderTime',
+        settings.dailyReminderTime,
+      );
+      await _preferences.setInt('timeFormat', settings.timeFormat.index);
+      if (settings.timezone != null) {
+        await _preferences.setString('timezone', settings.timezone!);
+      }
+    } catch (e) {
+      debugPrint('Error caching settings: $e');
+    }
+  }
+
+  @override
+  Future<bool> saveAppSettings(AppSettings settings) async {
+    try {
+      // First save locally (optimistic update)
+      await _cacheSettings(settings);
+      
+      // Then sync with backend if user is authenticated
+      final User? user = _supabaseClient.client.auth.currentUser;
+      
+      if (user != null) {
+        try {
+          final timeFormatStr = settings.timeFormat == TimeFormat.twelveHour 
+              ? '12h' 
+              : '24h';
+          final colorMode = settings.themeMode == ThemeMode.light 
+              ? 'light' 
+              : 'dark';
+          final languageStr = settings.language == AppLanguage.vietnamese 
+              ? 'vi' 
+              : 'en';
+          
+          final result = await _supabaseClient.client.rpc(
+            'update_user_settings',
+            params: {
+              'daily_reminder_time_param': settings.dailyReminderTime,
+              'time_format_param': timeFormatStr,
+              'timezone_param': settings.timezone,
+              'notifications_enabled_param': settings.notificationsEnabled,
+              'color_mode_param': colorMode,
+              'language_param': languageStr,
+            },
+          );
+          
+          if (result != null && result['success'] == true) {
+            debugPrint('✅ Settings synced with backend');
+            return true;
+          } else {
+            debugPrint('⚠️ Backend sync failed but local cache updated');
+            return true; // Still return true since local save succeeded
+          }
+        } catch (e) {
+          debugPrint('⚠️ Error syncing with backend: $e');
+          return true; // Still return true since local save succeeded
+        }
+      }
+      
       return true;
     } catch (e) {
+      debugPrint('❌ Error saving settings: $e');
       return false;
     }
   }

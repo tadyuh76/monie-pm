@@ -22,6 +22,7 @@ import 'package:monie/features/home/presentation/pages/home_page.dart';
 import 'package:monie/core/widgets/main_screen.dart';
 import 'package:monie/features/notifications/presentation/bloc/notification_bloc.dart';
 import 'package:monie/features/settings/domain/models/app_settings.dart';
+import 'package:monie/features/settings/domain/repositories/settings_repository.dart';
 import 'package:monie/features/settings/presentation/bloc/settings_bloc.dart';
 import 'package:monie/features/settings/presentation/bloc/settings_event.dart';
 import 'package:monie/features/settings/presentation/bloc/settings_state.dart';
@@ -68,7 +69,24 @@ void main() async {
   // Initialize notification service and schedule daily reminder
   final notificationService = sl<NotificationService>();
   await notificationService.initialize();
-  await notificationService.scheduleDailyReminder();
+  
+  // Load settings to get the custom reminder time
+  try {
+    final settingsRepository = sl<SettingsRepository>();
+    final settings = await settingsRepository.getAppSettings();
+    
+    // Parse the reminder time
+    final timeParts = settings.dailyReminderTime.split(':');
+    final hour = int.parse(timeParts[0]);
+    final minute = int.parse(timeParts[1]);
+    
+    // Schedule with custom time
+    await notificationService.scheduleDailyReminder(hour: hour, minute: minute);
+  } catch (e) {
+    debugPrint('Error loading settings for notification: $e');
+    // Fallback to default time
+    await notificationService.scheduleDailyReminder();
+  }
 
   runApp(const MyApp());
 }
