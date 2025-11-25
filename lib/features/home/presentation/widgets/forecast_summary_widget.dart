@@ -45,7 +45,7 @@ class _ForecastSummaryWidgetState extends State<ForecastSummaryWidget> {
       final budgetRepository = sl<BudgetRepository>();
       final activeBudgets = await budgetRepository.getActiveBudgets();
 
-      double totalBudget = 2000.0; // Default
+      double totalBudget = 0; 
       if (activeBudgets.isNotEmpty) {
         totalBudget = activeBudgets.fold<double>(
           0.0,
@@ -75,7 +75,7 @@ class _ForecastSummaryWidgetState extends State<ForecastSummaryWidget> {
           _predictionBloc.add(
             PredictNextMonthEvent(
               userId: authState.user.id,
-              budget: 2000.0,
+              budget: 0,
             ),
           );
         }

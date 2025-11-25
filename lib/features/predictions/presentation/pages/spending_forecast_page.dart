@@ -12,7 +12,7 @@ import 'package:monie/features/predictions/presentation/bloc/prediction_state.da
 import 'package:monie/features/predictions/presentation/widgets/prediction_gauge_widget.dart';
 import 'package:monie/features/predictions/presentation/widgets/category_forecast_chart.dart';
 import 'package:monie/features/predictions/presentation/widgets/confidence_indicator.dart';
-import 'package:monie/features/budgets/domain/repositories/budget_repository.dart'; // ⭐ Add import
+import 'package:monie/features/budgets/domain/repositories/budget_repository.dart'; 
 
 class SpendingForecastPage extends StatelessWidget {
   final double? initialBudget;
@@ -48,10 +48,9 @@ Future<void> _initializePrediction(
     final budgetRepository = sl<BudgetRepository>();
     final activeBudgets = await budgetRepository.getActiveBudgets();
 
-    double budgetAmount = initialBudget ?? 2000.0;
+    double budgetAmount = 0;
 
     if (activeBudgets.isNotEmpty) {
-      // ⭐ CỘNG TỔNG tất cả active budgets
       budgetAmount = activeBudgets.fold<double>(
         0.0,
         (sum, budget) => sum + budget.amount,
@@ -74,7 +73,7 @@ Future<void> _initializePrediction(
     print('❌ [INITIAL LOAD] Failed to load budget: $e');
     bloc.add(PredictNextMonthEvent(
       userId: userId,
-      budget: initialBudget ?? 2000.0,
+      budget: 0,
     ));
   }
 }
@@ -358,13 +357,7 @@ class _SpendingForecastViewState extends State<_SpendingForecastView> {
 
       print('💰 Scaled budget for $period: \$${budgetAmount.toStringAsFixed(0)}');
     } else {
-      budgetAmount = switch (period) {
-        'week' => 500.0,
-        'month' => 20000.0,
-        'quarter' => 6000.0,
-        _ => 2000.0,
-      };
-
+      budgetAmount = 0.0;
       print('⚠️ No active budget, using default: \$${budgetAmount}');
     }
 
@@ -395,12 +388,7 @@ class _SpendingForecastViewState extends State<_SpendingForecastView> {
   } catch (e) {
     print('❌ Error fetching budget: $e');
 
-    final defaultBudget = switch (period) {
-      'week' => 500.0,
-      'month' => 20000.0,
-      'quarter' => 6000.0,
-      _ => 2000.0,
-    };
+    final defaultBudget = 0.0;
 
     if (!context.mounted) return;
 

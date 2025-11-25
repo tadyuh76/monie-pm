@@ -1,6 +1,7 @@
 import 'package:injectable/injectable.dart';
 import 'package:monie/core/errors/exceptions.dart';
 import 'package:monie/core/network/supabase_client.dart';
+import 'package:monie/features/authentication/domain/entities/user.dart';
 import 'package:monie/features/transactions/data/models/transaction_model.dart';
 
 abstract class TransactionRemoteDataSource {
@@ -11,10 +12,15 @@ abstract class TransactionRemoteDataSource {
   Future<TransactionModel> createTransaction(TransactionModel transaction);
   Future<TransactionModel> updateTransaction(TransactionModel transaction);
   Future<bool> deleteTransaction(String transactionId);
-
-  getTransactionsByDateRange(DateTime startDate, DateTime endDate) {}
-
-  getTransactionsByType(String userId, String type) {}
+  Future<List<TransactionModel>> getTransactionsByDateRange(
+    String userId,
+    DateTime startDate,
+    DateTime endDate,
+  );
+  Future<List<TransactionModel>> getTransactionsByType(
+    String userId,
+    String type,
+  );
 }
 
 @Injectable(as: TransactionRemoteDataSource)
@@ -164,13 +170,15 @@ class TransactionRemoteDataSourceImpl implements TransactionRemoteDataSource {
 
   @override
   Future<List<TransactionModel>> getTransactionsByDateRange(
+    String userId,
     DateTime startDate,
-    DateTime endDate,
+    DateTime endDate,   
   ) async {
     try {
       final response = await _supabaseClientManager.client
           .from('transactions')
           .select()
+          .eq('user_id', userId)   
           .gte('date', startDate.toIso8601String())
           .lte('date', endDate.toIso8601String())
           .order('date', ascending: false);
