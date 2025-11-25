@@ -1,30 +1,29 @@
 plugins {
     id("com.android.application")
     id("kotlin-android")
-    id("com.google.gms.google-services")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+    id("com.google.gms.google-services")
 }
 
 android {
-    namespace = "com.example.monie"
+    namespace = "com.tadyuh.monie"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    ndkVersion = "29.0.13113456"
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-        // Enable Java 8 desugaring for flutter_local_notifications
         isCoreLibraryDesugaringEnabled = true
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
+        jvmTarget = JavaVersion.VERSION_11.toString()
     }
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.monie"
+        applicationId = "com.tadyuh.monie"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
@@ -47,15 +46,5 @@ flutter {
 }
 
 dependencies {
-    // Import Firebase BoM (giúp quản lý version các thư viện Firebase tự động)
-    implementation(platform("com.google.firebase:firebase-bom:34.6.0"))
-
-    // Thêm thư viện Analytics (tùy chọn, để test kết nối)
-    implementation("com.google.firebase:firebase-analytics")
-    
-    // Java 8 desugaring for flutter_local_notifications compatibility
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
-    
-    // Nếu sau này dùng Authentication hay Firestore thì thêm vào đây, ví dụ:
-    // implementation("com.google.firebase:firebase-auth")
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }
