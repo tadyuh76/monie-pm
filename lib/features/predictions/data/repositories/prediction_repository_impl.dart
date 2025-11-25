@@ -41,6 +41,7 @@ class PredictionRepositoryImpl implements PredictionRepository {
       
       // Fetch historical transactions
       final transactions = await transactionRepository.getTransactionsByDateRange(
+        userId,
         historyStartDate,
         DateTime.now(),
       );

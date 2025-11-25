@@ -30,6 +30,7 @@ class SpendingPatternRepositoryImpl implements SpendingPatternRepository {
     try {
       // Step 1: Fetch transactions from repository
       final transactions = await transactionRepository.getTransactionsByDateRange(
+        userId,
         startDate,
         endDate,
       );
