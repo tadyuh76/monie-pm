@@ -1,0 +1,22 @@
+# Supabase Configuration
+project_id = "dudxqglxiyjjahlsjaaw"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public"]
+
+[db]
+port = 54322
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+
+[functions]
+
+# Deno runtime for Edge Functions
+[functions.send-group-notification]
+verify_jwt = false
+

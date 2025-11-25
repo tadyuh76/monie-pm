@@ -26,7 +26,9 @@ import 'package:monie/features/authentication/domain/usecases/reset_password.dar
 import 'package:monie/features/authentication/domain/usecases/sign_in.dart';
 import 'package:monie/features/authentication/domain/usecases/sign_out.dart';
 import 'package:monie/features/authentication/domain/usecases/sign_up.dart';
+import 'package:monie/features/authentication/domain/usecases/update_fcm_token.dart';
 import 'package:monie/features/authentication/presentation/bloc/auth_bloc.dart';
+import 'package:monie/core/services/notification_service.dart';
 import 'package:monie/features/budgets/data/datasources/budget_remote_data_source.dart';
 import 'package:monie/features/budgets/data/repositories/budget_repository_impl.dart';
 import 'package:monie/features/budgets/domain/repositories/budget_repository.dart';
@@ -145,6 +147,10 @@ Future<void> configureDependencies() async {
   sl.registerLazySingleton(() => IsEmailVerified(sl()));
   sl.registerLazySingleton(() => ResetPassword(sl()));
   sl.registerLazySingleton(() => CheckEmailExists(sl()));
+  sl.registerLazySingleton(() => UpdateFcmToken(sl()));
+
+  // Core Services
+  sl.registerSingleton<NotificationService>(NotificationService());
 
   // Data sources
   sl.registerLazySingleton<AccountRemoteDataSource>(
@@ -250,6 +256,7 @@ Future<void> configureDependencies() async {
       resendVerificationEmail: sl(),
       isEmailVerified: sl(),
       checkEmailExists: sl(),
+      updateFcmToken: sl(),
     ),
   );
 
@@ -388,7 +395,7 @@ Future<void> configureDependencies() async {
       uploadAvatar: sl(),
     ),
   );
-  // Core Services
+  // AI Services
   sl.registerSingleton<GeminiService>(GeminiService());
 
   // Data Sources

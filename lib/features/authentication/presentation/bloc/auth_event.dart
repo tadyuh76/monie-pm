@@ -90,3 +90,12 @@ class CheckEmailExistsEvent extends AuthEvent {
   @override
   List<Object> get props => [email];
 }
+
+class UpdateFcmTokenEvent extends AuthEvent {
+  final String token;
+
+  const UpdateFcmTokenEvent({required this.token});
+
+  @override
+  List<Object> get props => [token];
+}

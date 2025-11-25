@@ -482,6 +482,17 @@ class GroupRemoteDataSourceImpl implements GroupRemoteDataSource {
 
       if (notifications.isNotEmpty) {
         await supabase.from('notifications').insert(notifications);
+        
+        // Send push notifications via Firebase Cloud Messaging
+        await _sendPushNotifications(
+          memberIds: memberIds,
+          title: 'Group Settled',
+          body: 'The group "$groupName" has been settled.',
+          data: {
+            'type': 'group_settlement',
+            'group_id': groupId,
+          },
+        );
       }
 
       return true;
@@ -673,6 +684,18 @@ class GroupRemoteDataSourceImpl implements GroupRemoteDataSource {
 
         if (notifications.isNotEmpty) {
           await supabase.from('notifications').insert(notifications);
+          
+          // Send push notifications via Firebase Cloud Messaging
+          await _sendPushNotifications(
+            memberIds: memberIds,
+            title: notificationTitle,
+            body: '$title in "$groupName" - \$${amount.toStringAsFixed(2)}',
+            data: {
+              'type': 'group_transaction',
+              'group_id': groupId,
+              'transaction_id': transactionId,
+            },
+          );
         }
       } else {
         // If requires approval, notify group admins
@@ -704,6 +727,22 @@ class GroupRemoteDataSourceImpl implements GroupRemoteDataSource {
 
         if (notifications.isNotEmpty) {
           await supabase.from('notifications').insert(notifications);
+          
+          // Send push notifications to admins via Firebase Cloud Messaging
+          final adminIds = (adminMembers as List)
+              .map((admin) => admin['user_id'] as String)
+              .toList();
+              
+          await _sendPushNotifications(
+            memberIds: adminIds,
+            title: notificationTitle,
+            body: '$title in "$groupName" - \$${amount.toStringAsFixed(2)}',
+            data: {
+              'type': 'group_transaction',
+              'group_id': groupId,
+              'transaction_id': transactionId,
+            },
+          );
         }
       }
 
@@ -867,11 +906,77 @@ class GroupRemoteDataSourceImpl implements GroupRemoteDataSource {
 
       if (notifications.isNotEmpty) {
         await supabase.from('notifications').insert(notifications);
+        
+        // Send push notifications via Firebase Cloud Messaging
+        await _sendPushNotifications(
+          memberIds: memberIds,
+          title: notificationTitle,
+          body: '$title in "$groupName" - \$${amount.toStringAsFixed(2)}',
+          data: {
+            'type': 'group_transaction',
+            'group_id': groupId,
+            'transaction_id': transactionId,
+          },
+        );
       }
 
       return true;
     } catch (e) {
       throw ServerException(message: e.toString());
+    }
+  }
+
+  /// Send push notifications via Supabase Edge Function
+  Future<void> _sendPushNotifications({
+    required List<String> memberIds,
+    required String title,
+    required String body,
+    required Map<String, String> data,
+  }) async {
+    try {
+      print('📤 [GroupRemoteDataSource] Sending push notifications to ${memberIds.length} member(s)');
+      
+      // Get FCM tokens for all members
+      final memberTokensResponse = await supabase
+          .from('users')
+          .select('fcm_token')
+          .inFilter('user_id', memberIds);
+
+      final tokens = (memberTokensResponse as List)
+          .where((m) => m['fcm_token'] != null && m['fcm_token'].toString().isNotEmpty)
+          .map((m) => m['fcm_token'] as String)
+          .toList();
+
+      if (tokens.isEmpty) {
+        print('⚠️ [GroupRemoteDataSource] No FCM tokens found for members');
+        return;
+      }
+
+      print('📤 [GroupRemoteDataSource] Found ${tokens.length} FCM token(s)');
+
+      // Call Supabase Edge Function
+      final response = await supabase.functions.invoke(
+        'send-group-notification',
+        body: {
+          'tokens': tokens,
+          'title': title,
+          'body': body,
+          'data': data,
+        },
+      );
+
+      if (response.status == 200) {
+        final responseData = response.data;
+        print('✅ [GroupRemoteDataSource] Push notifications sent successfully');
+        print('   - Success: ${responseData['successCount']}');
+        print('   - Failed: ${responseData['failureCount']}');
+      } else {
+        print('⚠️ [GroupRemoteDataSource] Edge Function returned status ${response.status}');
+        print('   Response: ${response.data}');
+      }
+    } catch (e) {
+      // Log error but don't fail the transaction
+      print('❌ [GroupRemoteDataSource] Failed to send push notifications: $e');
     }
   }
 }

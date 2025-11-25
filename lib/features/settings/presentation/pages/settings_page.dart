@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:monie/core/themes/app_colors.dart';
+import 'package:monie/core/services/notification_service.dart';
 import 'package:monie/di/injection.dart';
 import 'package:monie/features/authentication/presentation/bloc/auth_bloc.dart';
 import 'package:monie/features/authentication/presentation/bloc/auth_event.dart';
@@ -294,6 +295,12 @@ class _SettingsPageState extends State<SettingsPage> {
                       _buildLanguageSelector(state),
                       const SizedBox(height: 16),
                       _buildNotificationsToggle(state),
+                      if (_getSettingsFromState(state).notificationsEnabled) ...[
+                        Divider(color: _getDividerColor(context)),
+                        _buildReminderTimeSelector(state),
+                        Divider(color: _getDividerColor(context)),
+                        _buildTimeFormatToggle(state),
+                      ],
                     ],
                   ),
                 ),
@@ -1457,5 +1464,162 @@ class _SettingsPageState extends State<SettingsPage> {
             ],
           ),
     );
+  }
+
+  // Helper method to get settings from various states
+  AppSettings _getSettingsFromState(SettingsState state) {
+    if (state is ProfileLoaded) return state.settings;
+    if (state is SettingsLoaded) return state.settings;
+    if (state is SettingsUpdateSuccess) return state.settings;
+    if (state is ProfileUpdateSuccess) return state.settings;
+    return const AppSettings();
+  }
+
+  // Build Daily Reminder Time Selector
+  Widget _buildReminderTimeSelector(SettingsState state) {
+    final settings = _getSettingsFromState(state);
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    
+    // Parse the time string
+    final timeParts = settings.dailyReminderTime.split(':');
+    final hour = int.parse(timeParts[0]);
+    final minute = int.parse(timeParts[1]);
+    
+    // Format time for display based on user preference
+    String displayTime;
+    if (settings.timeFormat == TimeFormat.twelveHour) {
+      final period = hour >= 12 ? 'PM' : 'AM';
+      final displayHour = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+      displayTime = '$displayHour:${minute.toString().padLeft(2, '0')} $period';
+    } else {
+      displayTime = '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
+    }
+
+    return ListTile(
+      title: Text(
+        context.tr('settings_daily_reminder_time'),
+        style: TextStyle(
+          color: isDarkMode ? Colors.white : Colors.black87,
+        ),
+      ),
+      subtitle: Text(
+        displayTime,
+        style: TextStyle(
+          color: isDarkMode ? Colors.white70 : Colors.black54,
+        ),
+      ),
+      leading: Icon(
+        Icons.alarm,
+        color: isDarkMode ? Colors.white : Colors.black87,
+      ),
+      trailing: Icon(
+        Icons.arrow_forward_ios,
+        size: 16,
+        color: isDarkMode ? Colors.white54 : Colors.black54,
+      ),
+      onTap: () async {
+        final TimeOfDay? pickedTime = await showTimePicker(
+          context: context,
+          initialTime: TimeOfDay(hour: hour, minute: minute),
+          builder: (context, child) {
+            return Theme(
+              data: Theme.of(context).copyWith(
+                timePickerTheme: TimePickerThemeData(
+                  backgroundColor: isDarkMode ? AppColors.surface : Colors.white,
+                  hourMinuteTextColor: isDarkMode ? Colors.white : Colors.black87,
+                  dayPeriodTextColor: isDarkMode ? Colors.white : Colors.black87,
+                  dialHandColor: AppColors.primary,
+                  dialBackgroundColor: isDarkMode 
+                      ? Colors.grey[800] 
+                      : Colors.grey[200],
+                  hourMinuteColor: isDarkMode 
+                      ? Colors.grey[800] 
+                      : Colors.grey[200],
+                  dayPeriodColor: isDarkMode 
+                      ? Colors.grey[800] 
+                      : Colors.grey[200],
+                ),
+              ),
+              child: child!,
+            );
+          },
+        );
+
+        if (pickedTime != null) {
+          final newTime = '${pickedTime.hour.toString().padLeft(2, '0')}:'
+              '${pickedTime.minute.toString().padLeft(2, '0')}';
+          
+          if (mounted) {
+            context.read<SettingsBloc>().add(
+              UpdateDailyReminderTimeEvent(reminderTime: newTime),
+            );
+            
+            // Also trigger notification reschedule
+            _rescheduleNotifications(newTime);
+          }
+        }
+      },
+    );
+  }
+
+  // Build Time Format Toggle
+  Widget _buildTimeFormatToggle(SettingsState state) {
+    final settings = _getSettingsFromState(state);
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    return ListTile(
+      title: Text(
+        context.tr('settings_time_format'),
+        style: TextStyle(
+          color: isDarkMode ? Colors.white : Colors.black87,
+        ),
+      ),
+      subtitle: Text(
+        settings.timeFormat == TimeFormat.twelveHour ? '12-hour (AM/PM)' : '24-hour',
+        style: TextStyle(
+          color: isDarkMode ? Colors.white70 : Colors.black54,
+        ),
+      ),
+      leading: Icon(
+        Icons.schedule,
+        color: isDarkMode ? Colors.white : Colors.black87,
+      ),
+      trailing: Switch(
+        value: settings.timeFormat == TimeFormat.twelveHour,
+        activeColor: AppColors.primary,
+        onChanged: (value) {
+          context.read<SettingsBloc>().add(
+            UpdateTimeFormatEvent(
+              timeFormat: value ? TimeFormat.twelveHour : TimeFormat.twentyFourHour,
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // Helper method to reschedule notifications
+  Future<void> _rescheduleNotifications(String newTime) async {
+    try {
+      // Import notification service at the top of the file if not already imported
+      final notificationService = sl<NotificationService>();
+      
+      // Parse the time
+      final timeParts = newTime.split(':');
+      final hour = int.parse(timeParts[0]);
+      final minute = int.parse(timeParts[1]);
+      
+      // Reschedule with new time
+      await notificationService.scheduleDailyReminder(hour: hour, minute: minute);
+      
+      if (mounted) {
+        _showSuccessSnackBar(context.tr('settings_reminder_updated'));
+      }
+    } catch (e) {
+      debugPrint('Error rescheduling notifications: $e');
+      if (mounted) {
+        _showErrorSnackBar(context.tr('settings_reminder_update_error'));
+      }
+    }
   }
 }

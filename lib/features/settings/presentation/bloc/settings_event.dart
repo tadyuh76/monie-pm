@@ -57,4 +57,16 @@ class ChangePasswordEvent extends SettingsEvent {
     required this.currentPassword,
     required this.newPassword,
   });
+}
+
+class UpdateDailyReminderTimeEvent extends SettingsEvent {
+  final String reminderTime; // Format: "HH:mm"
+  
+  const UpdateDailyReminderTimeEvent({required this.reminderTime});
+}
+
+class UpdateTimeFormatEvent extends SettingsEvent {
+  final TimeFormat timeFormat;
+  
+  const UpdateTimeFormatEvent({required this.timeFormat});
 } 

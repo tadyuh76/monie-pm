@@ -50,3 +50,7 @@ app.*.map.json
 push-notify/push-notify-key.json
 push-notify/node_modules/
 node_modules/
+
+# Firebase & Google Services
+google-services.json
+**/google-services.json

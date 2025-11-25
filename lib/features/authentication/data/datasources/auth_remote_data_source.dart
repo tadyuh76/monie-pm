@@ -37,6 +37,9 @@ abstract class AuthRemoteDataSource {
   /// Checks if an email already exists and returns status with verification state
   /// Returns a map with 'exists' (bool) and 'verified' (bool) keys
   Future<Map<String, bool>> checkEmailExists({required String email});
+
+  /// Updates the FCM token for the current user
+  Future<void> updateFcmToken({required String token});
 }
 
 class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
@@ -377,6 +380,34 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     } catch (e) {
       // If there's any error, assume the email doesn't exist
       return {'exists': false, 'verified': false};
+    }
+  }
+
+  @override
+  Future<void> updateFcmToken({required String token}) async {
+    try {
+      final user = supabaseClient.auth.currentUser;
+      if (user == null) {
+        print('❌ [AuthRemoteDataSource] No authenticated user');
+        throw const AuthFailure(message: 'No authenticated user');
+      }
+
+      print('🔄 [AuthRemoteDataSource] Updating FCM token for user: ${user.id}');
+      print('   Token: ${token.substring(0, 20)}...');
+
+      // Update FCM token in users table using UPDATE (not upsert)
+      await supabaseClient.client
+          .from('users')
+          .update({'fcm_token': token})
+          .eq('user_id', user.id);
+
+      print('✅ [AuthRemoteDataSource] FCM token updated successfully');
+    } on AuthException catch (e) {
+      print('❌ [AuthRemoteDataSource] AuthException: ${e.message}');
+      throw AuthFailure(message: e.message);
+    } catch (e) {
+      print('❌ [AuthRemoteDataSource] Error updating FCM token: $e');
+      throw ServerFailure(message: e.toString());
     }
   }
 }

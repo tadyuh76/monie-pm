@@ -44,4 +44,7 @@ abstract class AuthRepository {
   Future<Either<Failure, Map<String, bool>>> checkEmailExists({
     required String email,
   });
+
+  /// Updates the FCM token for the current user
+  Future<Either<Failure, void>> updateFcmToken({required String token});
 }

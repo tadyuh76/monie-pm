@@ -7,6 +7,7 @@ import 'package:monie/features/authentication/domain/usecases/reset_password.dar
 import 'package:monie/features/authentication/domain/usecases/sign_in.dart';
 import 'package:monie/features/authentication/domain/usecases/sign_out.dart';
 import 'package:monie/features/authentication/domain/usecases/sign_up.dart';
+import 'package:monie/features/authentication/domain/usecases/update_fcm_token.dart';
 import 'package:monie/features/authentication/presentation/bloc/auth_event.dart';
 import 'package:monie/features/authentication/presentation/bloc/auth_state.dart';
 
@@ -19,6 +20,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final IsEmailVerified _isEmailVerified;
   final ResetPassword _resetPassword;
   final CheckEmailExists _checkEmailExists;
+  final UpdateFcmToken _updateFcmToken;
 
   // Track last email send time
   final Map<String, DateTime> _lastVerificationEmails = {};
@@ -32,6 +34,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     required IsEmailVerified isEmailVerified,
     required ResetPassword resetPassword,
     required CheckEmailExists checkEmailExists,
+    required UpdateFcmToken updateFcmToken,
   }) : _getCurrentUser = getCurrentUser,
        _signUp = signUp,
        _signIn = signIn,
@@ -40,6 +43,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
        _isEmailVerified = isEmailVerified,
        _resetPassword = resetPassword,
        _checkEmailExists = checkEmailExists,
+       _updateFcmToken = updateFcmToken,
        super(AuthInitial()) {
     on<GetCurrentUserEvent>(_onGetCurrentUser);
     on<RefreshUserEvent>(_onRefreshUser);
@@ -50,6 +54,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<CheckVerificationStatusEvent>(_onCheckVerificationStatus);
     on<ResetPasswordEvent>(_onResetPassword);
     on<CheckEmailExistsEvent>(_onCheckEmailExists);
+    on<UpdateFcmTokenEvent>(_onUpdateFcmToken);
   }
 
   Future<void> _onRefreshUser(
@@ -214,5 +219,28 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         emit(EmailDoesNotExist());
       }
     });
+  }
+
+  Future<void> _onUpdateFcmToken(
+    UpdateFcmTokenEvent event,
+    Emitter<AuthState> emit,
+  ) async {
+    print('🔄 [AuthBloc] Updating FCM token in database...');
+    print('   Token: ${event.token.substring(0, 20)}...');
+    
+    final params = UpdateFcmTokenParams(token: event.token);
+    final result = await _updateFcmToken(params);
+
+    result.fold(
+      (failure) {
+        print('❌ [AuthBloc] Failed to update FCM token: ${failure.message}');
+        // Silently fail - don't emit error state for FCM token updates
+        // This is a background operation that shouldn't disrupt user experience
+      },
+      (_) {
+        print('✅ [AuthBloc] FCM token updated successfully in database');
+        // Success - token updated silently
+      },
+    );
   }
 }

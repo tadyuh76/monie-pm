@@ -1,6 +1,7 @@
 plugins {
     id("com.android.application")
     id("kotlin-android")
+    id("com.google.gms.google-services")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
@@ -13,6 +14,8 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // Enable Java 8 desugaring for flutter_local_notifications
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
@@ -41,4 +44,18 @@ android {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // Import Firebase BoM (giúp quản lý version các thư viện Firebase tự động)
+    implementation(platform("com.google.firebase:firebase-bom:34.6.0"))
+
+    // Thêm thư viện Analytics (tùy chọn, để test kết nối)
+    implementation("com.google.firebase:firebase-analytics")
+    
+    // Java 8 desugaring for flutter_local_notifications compatibility
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
+    
+    // Nếu sau này dùng Authentication hay Firestore thì thêm vào đây, ví dụ:
+    // implementation("com.google.firebase:firebase-auth")
 }
