@@ -159,5 +159,3 @@ _(Consider adding a few screenshots or a GIF showcasing the main features of you
 (If this were an open project, you'd add contribution guidelines here. For a university project, you might mention team members or leave this section out.)
 
 ---
-
-Built with ❤️ by tadyuh76 - PeanLut - Leonn2285 - ayo-lole
